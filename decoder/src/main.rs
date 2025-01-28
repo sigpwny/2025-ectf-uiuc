@@ -6,17 +6,20 @@ pub use hal::pac;
 pub use hal::entry;
 
 // pick a panicking behavior
-use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch panics
+// use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch panics
 // use panic_abort as _; // requires nightly
 // use panic_itm as _; // logs messages over ITM; requires ITM support
-// use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
-// use cortex_m_semihosting::heprintln; // uncomment to use this for printing through semihosting
+use panic_semihosting as _; // logs messages to the host stderr; requires a debugger
+use cortex_m_semihosting::heprintln; // uncomment to use this for printing through semihosting
+
+mod host_driver;
+use host_driver::HostTransportDriver;
 
 #[entry]
 fn main() -> ! {
-    // heprintln!("Hello from semihosting!");
-    let p = pac::Peripherals::take().unwrap();
-    let core = pac::CorePeripherals::take().unwrap();
+    heprintln!("Hello from semihosting!");
+    let p = pac::Peripherals::take().expect("Failed to take peripherals");
+    let core = pac::CorePeripherals::take().expect("Failed to take core peripherals");
 
     let mut gcr = hal::gcr::Gcr::new(p.gcr, p.lpgcr);
     let ipo = hal::gcr::clocks::Ipo::new(gcr.osc_guards.ipo).enable(&mut gcr.reg);
