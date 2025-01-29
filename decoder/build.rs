@@ -18,18 +18,25 @@ use std::path::PathBuf;
 fn main() {
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
+    let target_memory_x = if std::env::var("CARGO_FEATURE_NO_BOOTLOADER").is_ok() {
+        println!("cargo:warning={}", "Using direct flash memory layout");
+        "memory.dev.x"
+    } else {
+        "memory.prod.x"
+    };
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
-    File::create(out.join("memory.x"))
-        .unwrap()
-        .write_all(include_bytes!("memory.x"))
-        .unwrap();
+    File::create(out.join("memory.x")).unwrap();
+    // Copy the target memory file to the output directory
+    std::fs::copy(target_memory_x, out.join("memory.x")).unwrap();
     println!("cargo:rustc-link-search={}", out.display());
 
     // By default, Cargo will re-run a build script whenever
     // any file in the project changes. By specifying `memory.x`
     // here, we ensure the build script is only re-run when
     // `memory.x` is changed.
-    println!("cargo:rerun-if-changed=memory.x");
+    // println!("cargo:rerun-if-changed=memory.x");
+    println!("cargo:rerun-if-changed=memory.dev.x");
+    println!("cargo:rerun-if-changed=memory.prod.x");
 
     // Specify linker arguments.
 

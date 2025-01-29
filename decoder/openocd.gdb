@@ -1,3 +1,6 @@
+set pagination off
+set confirm off
+
 target extended-remote :50000
 
 # print demangled symbols
@@ -17,7 +20,7 @@ break rust_begin_unwind
 # end
 
 # *try* to stop at the user entry point (it might be gone due to inlining)
-break main
+# break main
 
 # enable semihosting
 monitor arm semihosting enable
