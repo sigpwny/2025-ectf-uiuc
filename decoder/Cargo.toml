@@ -7,6 +7,9 @@ publish = false
 [package.metadata.docs.rs]
 targets = ["thumbv7em-none-eabihf"]
 
+[dependencies.common]
+path = "../common"
+
 [dependencies]
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = { version = "0.7.5", features = ["set-sp", "set-vtor"] }
