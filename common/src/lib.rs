@@ -1,10 +1,5 @@
 #![cfg_attr(not(test), no_std)]
 
-pub static MAX_CHANNEL_COUNT: u8 = 8;
-pub static EMERGENCY_CHANNEL: u8 = 0;
-pub static FRAME_SIZE: u8 = 64;
-pub static DEFAULT_CHANNEL_TIMESTAMP: u32 = 0xFFFFFFFF;
-
 #[derive(Debug)]
 pub struct Subscription {
     channel_id: u32,
@@ -45,9 +40,9 @@ pub struct DecodedFrame<'a> {
 impl Default for Subscription {
     fn default() -> Self {
         Subscription {
-            channel_id: 0,
-            start: 0,
-            end: 0
+            channel_id: 0xFFFFFFFF,
+            start: 0x0,
+            end: 0x0
         }
     }
 }
@@ -142,14 +137,14 @@ mod tests {
     #[test]
     fn test_subscription_to_bytes() {
         let sub = Subscription {
-            channel_id: 1,
-            start: 50,
-            end: 500
+            channel_id: 0x1,
+            start: 0x32,
+            end: 0x1F4
         };
         let sub_bytes: [u8; 20] = [
-            0, 0, 0, 1,
-            0, 0, 0, 0, 0, 0, 0, 50,
-            0, 0, 0, 0, 0, 0, 1, 244
+            0x0, 0x0, 0x0, 0x1,
+            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x32,
+            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0xF4
         ];
         assert_eq!(sub.to_bytes(), sub_bytes);
     }
@@ -157,15 +152,15 @@ mod tests {
     #[test]
     fn test_channels_to_bytes() {
         let sub1 = Subscription {
-            channel_id: 1,
-            start: 50,
-            end: 500
+            channel_id: 0x1,
+            start: 0x32,
+            end: 0x1F4
         };
 
         let sub2 = Subscription {
-            channel_id: 2,
-            start: 100,
-            end: 1000
+            channel_id: 0x02,
+            start: 0x32,
+            end: 0x1F4
         };
 
         let channels = Channels {
