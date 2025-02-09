@@ -8,6 +8,9 @@ pub struct Subscription {
 }
 
 #[derive(Debug)]
+pub struct Channels([Option<Subscription>; 8]);
+
+#[derive(Debug)]
 pub struct EncodedFrame<'a> {
     data: &'a [u8]
 }
@@ -67,14 +70,14 @@ impl BytesSerializable<20> for Subscription {
     }
 }
 
-impl BytesSerializable<161> for [Option<Subscription>; 8] {
+impl BytesSerializable<161> for Channels {
     fn to_bytes(&self) -> [u8; 161] {
         let mut bytes = [0; 161];
 
         // The first byte is a bitmask that indicates which channels are present
         let mut bitmask = 0;
         for i in 0..8 {
-            if self[i].is_some() {
+            if self.0[i].is_some() {
                 bitmask |= 1 << i;
             }
         }
@@ -83,7 +86,7 @@ impl BytesSerializable<161> for [Option<Subscription>; 8] {
         // The rest of the bytes are the serialized channels (active subscriptions)
         let mut offset = 1;
         for i in 0..8 {
-            if let Some(sub) = self[i].as_ref() {
+            if let Some(sub) = self.0[i].as_ref() {
                 bytes[offset..offset + 20].copy_from_slice(&sub.to_bytes());
             }
             offset += 20;
@@ -92,7 +95,7 @@ impl BytesSerializable<161> for [Option<Subscription>; 8] {
         bytes
     }
 
-    fn from_bytes(bytes: [u8; 161]) -> [Option<Subscription>; 8] {
+    fn from_bytes(bytes: [u8; 161]) -> Self {
         let mut channels = [const{ None }; 8];
 
         let bitmask = bytes[0];
@@ -104,7 +107,7 @@ impl BytesSerializable<161> for [Option<Subscription>; 8] {
             offset += 20;
         }
 
-        channels
+        Channels(channels)
     }
 }
 
@@ -147,17 +150,7 @@ mod tests {
         channels_bytes[1..21].copy_from_slice(&sub1.to_bytes());
         channels_bytes[21..41].copy_from_slice(&sub2.to_bytes());
 
-        let channels = [
-            Some(sub1),
-            Some(sub2),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None
-        ];
-
+        let channels = Channels([Some(sub1), Some(sub2), None, None, None, None, None, None]);
         assert_eq!(channels.to_bytes(), channels_bytes);
     }
 }
