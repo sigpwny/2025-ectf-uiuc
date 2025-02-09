@@ -8,19 +8,6 @@ pub struct Subscription {
 }
 
 #[derive(Debug)]
-pub struct Channels {
-    // Note: Channel 0 does not need a subscription
-    channel_1: Option<Subscription>,
-    channel_2: Option<Subscription>,
-    channel_3: Option<Subscription>,
-    channel_4: Option<Subscription>,
-    channel_5: Option<Subscription>,
-    channel_6: Option<Subscription>,
-    channel_7: Option<Subscription>,
-    channel_8: Option<Subscription>
-}
-
-#[derive(Debug)]
 pub struct EncodedFrame<'a> {
     data: &'a [u8]
 }
@@ -43,23 +30,6 @@ impl Default for Subscription {
             channel_id: 0xFFFFFFFF,
             start: 0x0,
             end: 0x0
-        }
-    }
-}
-
-impl Channels {
-    fn update_subscriptions(&mut self, subscription: Subscription) -> () {
-        match subscription.channel_id {
-            0 => (),
-            1 => self.channel_1 = Some(subscription),
-            2 => self.channel_2 = Some(subscription),
-            3 => self.channel_3 = Some(subscription),
-            4 => self.channel_4 = Some(subscription),
-            5 => self.channel_5 = Some(subscription),
-            6 => self.channel_6 = Some(subscription),
-            7 => self.channel_7 = Some(subscription),
-            8 => self.channel_8 = Some(subscription),
-            _ => ()
         }
     }
 }
@@ -97,37 +67,46 @@ impl BytesSerializable<20> for Subscription {
     }
 }
 
-// impl BytesSerializable<160> for Channels {
-//     fn to_bytes(&self) -> [u8; 160] {
-//         let mut bytes = [0; 160];
-//
-//         bytes[..20].copy_from_slice(&self.channel_1.unwrap_or_default().to_bytes());
-//
-//         bytes
-//     }
-//
-//     fn from_bytes(bytes: [u8; 160]) -> Self {
-//         let channel_1 = Subscription::from_bytes(bytes[..20].try_into().unwrap());
-//         let channel_2 = Subscription::from_bytes(bytes[20..40].try_into().unwrap());
-//         let channel_3 = Subscription::from_bytes(bytes[40..60].try_into().unwrap());
-//         let channel_4 = Subscription::from_bytes(bytes[60..80].try_into().unwrap());
-//         let channel_5 = Subscription::from_bytes(bytes[80..100].try_into().unwrap());
-//         let channel_6 = Subscription::from_bytes(bytes[100..120].try_into().unwrap());
-//         let channel_7 = Subscription::from_bytes(bytes[120..140].try_into().unwrap());
-//         let channel_8 = Subscription::from_bytes(bytes[140..].try_into().unwrap());
-//
-//         Channels {
-//             channel_1: Some(channel_1),
-//             channel_2: Some(channel_2),
-//             channel_3: Some(channel_3),
-//             channel_4: Some(channel_4),
-//             channel_5: Some(channel_5),
-//             channel_6: Some(channel_6),
-//             channel_7: Some(channel_7),
-//             channel_8: Some(channel_8)
-//         }
-//     }
-// }
+impl BytesSerializable<161> for [Option<Subscription>; 8] {
+    fn to_bytes(&self) -> [u8; 161] {
+        let mut bytes = [0; 161];
+
+        // The first byte is a bitmask that indicates which channels are present
+        let mut bitmask = 0;
+        for i in 0..8 {
+            if self[i].is_some() {
+                bitmask |= 1 << i;
+            }
+        }
+        bytes[0] = bitmask;
+
+        // The rest of the bytes are the serialized channels (active subscriptions)
+        let mut offset = 1;
+        for i in 0..8 {
+            if let Some(sub) = self[i].as_ref() {
+                bytes[offset..offset + 20].copy_from_slice(&sub.to_bytes());
+            }
+            offset += 20;
+        }
+
+        bytes
+    }
+
+    fn from_bytes(bytes: [u8; 161]) -> [Option<Subscription>; 8] {
+        let mut channels = [const{ None }; 8];
+
+        let bitmask = bytes[0];
+        let mut offset = 1;
+        for i in 0..8 {
+            if bitmask & (1 << i) != 0 {
+                channels[i] = Some(Subscription::from_bytes(bytes[offset..offset + 20].try_into().unwrap()));
+            }
+            offset += 20;
+        }
+
+        channels
+    }
+}
 
 
 #[cfg(test)]
@@ -163,17 +142,22 @@ mod tests {
             end: 0x1F4
         };
 
-        let channels = Channels {
-            channel_1: Some(sub1),
-            channel_2: Some(sub2),
-            channel_3: None,
-            channel_4: None,
-            channel_5: None,
-            channel_6: None,
-            channel_7: None,
-            channel_8: None
-        };
+        let mut channels_bytes: [u8; 161] = [0; 161];
+        channels_bytes[0] = 0b11;
+        channels_bytes[1..21].copy_from_slice(&sub1.to_bytes());
+        channels_bytes[21..41].copy_from_slice(&sub2.to_bytes());
 
-        // println!("{:?}", channels.to_bytes());
+        let channels = [
+            Some(sub1),
+            Some(sub2),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None
+        ];
+
+        assert_eq!(channels.to_bytes(), channels_bytes);
     }
 }
