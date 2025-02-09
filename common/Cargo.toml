@@ -10,4 +10,4 @@ publish = false
 targets = ["thumbv7em-none-eabihf"]
 
 [dependencies]
-serde = "1.0.217"
+serde = { version = "1.0.217", default-features = false }
