@@ -13,21 +13,24 @@ RUN apt-get update && apt-get install -y \
     binutils-arm-none-eabi \
     make \
     python3.10 \
-    libudev-dev \
-    wget \
-    unzip    
+    libudev-dev
+    # wget \
+    # unzip    
 
 # Install MSDK
 # Step 2
-RUN apt-get install -y unzip && \
-    wget https://github.com/analogdevicesinc/msdk/archive/refs/tags/v2024_02.zip && \
-    unzip v2024_02.zip && \
-    rm -f v2024_02.zip
+# RUN apt-get install -y unzip && \
+#     wget https://github.com/analogdevicesinc/msdk/archive/refs/tags/v2024_02.zip && \
+#     unzip v2024_02.zip && \
+#     rm -f v2024_02.zip
 
-ENV MAXIM_PATH=/root/msdk-2024_02
+# ENV MAXIM_PATH=/root/msdk-2024_02
+
+RUN rustup default beta && rustup target add thumbv7em-none-eabihf
 
 # ENTRYPOINT ["bash", "-c", "make release DECODER_ID=${DECODER_ID} && cp build/max78000.elf build/max78000.bin /out"]
 ENTRYPOINT ["cargo", "build", "--release"]
 
 # Sample run command:
-# docker run --rm -v ./build_out:/out -v ./:/decoder -v ./secrets:/secrets -e DECODER_ID=0xdeadbeef decoderFROM rust:latest
+# docker build -t decoder:uiuc .
+# docker run --rm -v ./build_out:/out -v ./:/decoder -v ./secrets:/secrets -e DECODER_ID=0xdeadbeef decoder-uiuc
