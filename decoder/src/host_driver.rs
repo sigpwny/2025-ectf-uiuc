@@ -49,14 +49,6 @@ where
     }
 
     pub fn read_packet(&mut self, packet: &mut [u8], header: &mut MessageHeader) -> Result<(), SerialError> {
-        // for byte in packet.iter_mut() {
-        //     *byte = nb::block!(self.uart.read())?;
-        // }
-        // Ok(())
-
-
-
-        /* Max size is 1kB */
 
         // let mut header: MessageHeader = MessageHeader{magic: 0,opcode: 0,length: 0};
 
@@ -71,7 +63,7 @@ where
         /* We properly read in the header, based on this let's read some amount of bytes */
         
         if (header.opcode != MessageType::Ack) {
-            self.write_packet(MessageType::Ack, 0, &[]); // Need to write ack, dont know what that is lol
+            self.write_packet(MessageType::Ack, 0, &[])?; // Need to write ack, dont know what that is lol
             if (header.length != 0) {
                 /* Read bytes into buffer (for loop) */
             }
@@ -128,7 +120,7 @@ where
         //     nb::block!(self.uart.write(*byte))?;
         // }
 
-        
+
 
         
 
