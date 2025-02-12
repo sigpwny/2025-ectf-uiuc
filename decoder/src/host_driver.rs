@@ -1,10 +1,13 @@
+use embedded_hal_nb::nb::block;
 use embedded_hal_nb::serial::{self, Error};
 use core::convert::Infallible;
 use core::marker::PhantomData;
 
+const PACKET_SIZE_LIMIT: u16 = 1000;
+
 /// The type of message being sent or received over the host transport interface.
 // TODO: Set MessageType based on opcode
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone)]
 pub enum MessageType {
     Decode,
     Subscribe,
@@ -56,22 +59,22 @@ where
             Ok(_) => {},
             Err(e) => match e {
                 embedded_hal_nb::nb::Error::Other(o) => return core::prelude::v1::Err(o),
-                embedded_hal_nb::nb::Error::WouldBlock => {}
+                _ => {}
             },
         }
         
         /* We properly read in the header, based on this let's read some amount of bytes */
         
-        if (header.opcode != MessageType::Ack) {
+        if header.opcode != MessageType::Ack {
             self.write_packet(MessageType::Ack, 0, &[])?; // Need to write ack, dont know what that is lol
-            if (header.length != 0) {
+            if header.length != 0 {
                 /* Read bytes into buffer (for loop) */
-            }
-            if (header.length != 0) {
-                if (self.write_packet(MessageType::Ack, 0, &[]).is_err()) {
-                    /* propagate error */
-                    
+                for val in packet.iter_mut() {
+                    *val = block!(self.uart.read())?;
                 }
+            }
+            if header.length != 0 {
+                self.write_packet(MessageType::Ack, 0, &[])?;
             }
         }
 
@@ -87,14 +90,14 @@ where
     }
 
     fn read_header(&mut self, header: &mut MessageHeader) -> Result<(), embedded_hal_nb::nb::Error<SerialError>> {
-        let mut magic_value: u8 = self.uart.read()?;
+        let mut magic_value: u8 = block!(self.uart.read())?;
 
         while magic_value != b'%' {
-            magic_value = self.uart.read()?;
+            magic_value = block!(self.uart.read())?;
         }
 
         header.magic = magic_value;
-        header.opcode = match self.uart.read()? {
+        header.opcode = match block!(self.uart.read())? {
             b'D' => MessageType::Decode,
             b'S' => MessageType::Subscribe,
             b'L' => MessageType::List,
@@ -103,26 +106,84 @@ where
             b'G' => MessageType::Debug,
             _ => MessageType::Error
         };
-        if (header.opcode == MessageType::Error) {
+        if header.opcode == MessageType::Error {
             header.length = 0;
             return Ok(());
         }
-        let first_byte = self.uart.read()?; /* Ask if there is way to read multiple btes at a time, serial implement one byte while mebedded io does multiple */
-        let second_byte = self.uart.read()?;
-        header.length = ((((first_byte as u16) << 8) & 0xFF00) | (second_byte as u16 & 0x00FF));
+        let first_byte = block!(self.uart.read())?; /* Ask if there is way to read multiple btes at a time, serial implement one byte while mebedded io does multiple */
+        let second_byte = block!(self.uart.read())?;
+        header.length = (((first_byte as u16) << 8) & 0xFF00) | (second_byte as u16 & 0x00FF);
+
+        if header.length > PACKET_SIZE_LIMIT {
+            header.opcode = MessageType::Error;
+            header.length = 0;
+        }
+
+        Ok(())
+
+    }
+
+    fn write_header(&mut self, header: &MessageHeader) -> Result<(), embedded_hal_nb::nb::Error<SerialError>> {
+        block!(self.uart.write(header.magic))?;
+        match header.opcode {
+            MessageType::Decode => block!(self.uart.write(b'D'))?,
+            MessageType::Subscribe => block!(self.uart.write(b'S'))?,
+            MessageType::List => block!(self.uart.write(b'L'))?,
+            MessageType::Ack => block!(self.uart.write(b'A'))?,
+            MessageType::Error => block!(self.uart.write(b'E'))?,
+            MessageType::Debug => block!(self.uart.write(b'G'))?,
+            _ => block!(self.uart.write(b'E'))?
+        };
+        
+        block!(self.uart.write((header.length >> 8) as u8))?;
+        block!(self.uart.write((header.length & 0x00FF) as u8))?;
 
         Ok(())
 
     }
 
     pub fn write_packet(&mut self, message_type: MessageType, len: u16, packet: &[u8]) -> Result<(), SerialError> {
-        // for byte in packet {
-        //     nb::block!(self.uart.write(*byte))?;
-        // }
 
+        let header: MessageHeader = MessageHeader{magic: b'%', opcode: message_type.clone(), length: len};
 
+        match self.write_header(&header) {
+            Ok(_) => {},
+            Err(e) => match e {
+                embedded_hal_nb::nb::Error::Other(o) => return core::prelude::v1::Err(o),
+                _ => {}
+            },
+        }
 
-        
+        if message_type == MessageType::Ack {
+            return Ok(());
+        }
+        if message_type != MessageType::Debug {
+            let mut ack_header: MessageHeader = MessageHeader{magic: b'%', opcode: MessageType::Error, length: 0};
+            match self.read_header(&mut ack_header) {
+                Ok(_) => {},
+                Err(e) => match e {
+                    embedded_hal_nb::nb::Error::Other(o) => return core::prelude::v1::Err(o),
+                    _ => {}
+                },
+            }
+        }
+
+        if len > 0 && len < PACKET_SIZE_LIMIT {
+            for val in packet.iter() {
+                block!(self.uart.write(*val))?;
+            }
+            if message_type != MessageType::Debug {
+                let mut ack_header: MessageHeader = MessageHeader{magic: b'%', opcode: MessageType::Error, length: 0};
+                match self.read_header(&mut ack_header) {
+                    Ok(_) => {},
+                    Err(e) => match e {
+                        embedded_hal_nb::nb::Error::Other(o) => return core::prelude::v1::Err(o),
+                        _ => {}
+                    },
+                }
+            }
+        }
+
 
         Ok(())
     }
