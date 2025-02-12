@@ -1,4 +1,4 @@
-use embedded_hal_nb::serial;
+use embedded_hal_nb::serial::{self, Error};
 use core::convert::Infallible;
 use core::marker::PhantomData;
 
@@ -11,6 +11,12 @@ pub enum MessageType {
     Ack,
     Error,
     Debug,
+}
+
+pub struct MessageHeader {
+    magic: u8,
+    opcode: u8,
+    length: u16
 }
 
 /// A driver for the host computer and decoder interface as described in the
@@ -40,12 +46,70 @@ where
         self.uart
     }
 
-    // pub fn read_packet(&mut self, packet: &mut [u8]) -> Result<(), SerialError> {
-    //     for byte in packet.iter_mut() {
-    //         *byte = nb::block!(self.uart.read())?;
-    //     }
-    //     Ok(())
-    // }
+    pub fn read_packet(&mut self, packet: &mut [u8]) -> Result<(), SerialError> {
+        // for byte in packet.iter_mut() {
+        //     *byte = nb::block!(self.uart.read())?;
+        // }
+        // Ok(())
+
+        /* */
+
+        let mut header: MessageHeader = MessageHeader{magic: 0,opcode: 0,length: 0};
+
+        match self.read_header(&mut header) {
+            Ok(_) => {},
+            Err(e) => match e {
+                embedded_hal_nb::nb::Error::Other(o) => return core::prelude::v1::Err(o),
+                embedded_hal_nb::nb::Error::WouldBlock => {}
+            },
+        }
+        
+        /* We properly read in the header, based on this let's read some amount of bytes */
+        
+        if (header.opcode != 0x41) {
+            write_packet(); // Need to write ack, dont know what that is lol
+            if (header.length != 0) {
+                /* Read bytes into buffer (for loop) */
+            }
+            if (header.length) {
+                if (write_packet().is_err()) {
+                    /* propagate error */
+                    
+                }
+            }
+        }
+
+        /* Skipping cmd part, come back to later */
+        Ok(())
+
+        
+
+        
+
+
+
+    }
+
+    fn read_header(&mut self, header: &mut MessageHeader) -> Result<(), embedded_hal_nb::nb::Error<SerialError>> {
+        let mut magic_value: u8 = self.uart.read()?;
+
+        while magic_value != b'%' {
+            magic_value = self.uart.read()?;
+        }
+
+        header.magic = magic_value;
+        header.opcode = self.uart.read()?;
+        let first_byte = self.uart.read()?; /* Ask if there is way to read multiple btes at a time, serial implement one byte while mebedded io does multiple */
+        let second_byte = self.uart.read()?;
+        header.length = ((((first_byte as u16) << 8) & 0xFF00) | (second_byte as u16 & 0x00FF));
+
+        Ok(())
+
+
+
+
+
+    }
 
     // pub fn write_packet(&mut self, packet: &[u8]) -> Result<(), SerialError> {
     //     for byte in packet {
