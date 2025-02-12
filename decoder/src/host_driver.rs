@@ -105,16 +105,13 @@ where
 
         Ok(())
 
-
-
-
-
     }
 
-    // pub fn write_packet(&mut self, packet: &[u8]) -> Result<(), SerialError> {
-    //     for byte in packet {
-    //         nb::block!(self.uart.write(*byte))?;
-    //     }
-    //     Ok(())
-    // }
+    pub fn write_packet(&mut self, packet: &[u8]) -> Result<(), SerialError> {
+        // for byte in packet {
+        //     nb::block!(self.uart.write(*byte))?;
+        // }
+        
+        Ok(())
+    }
 }
