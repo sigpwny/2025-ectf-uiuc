@@ -1,0 +1,12 @@
+[package]
+name = "ectf25_design"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../../common" }
+#serde = { version = "1.0.217", default-features = false }
+hmac = "0.12"  # HMAC library
+sha2 = "0.10"  # SHA-256/SHA-512 hashing
+ascon-aead = "0.4.2"  # Ascon AEAD implementation
+crypto-common = "0.1.6"
