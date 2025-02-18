@@ -12,14 +12,24 @@
 
 use std::env;
 use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
     let target_memory_x = if std::env::var("CARGO_FEATURE_NO_BOOTLOADER").is_ok() {
-        println!("cargo:warning={}", "Using direct flash memory layout");
+        println!(
+            "cargo:warning={}",
+            "Compiling using direct flash memory layout!"
+        );
+        println!(
+            "cargo:warning={}",
+            "You will not be able to flash the compiled binary using the eCTF bootloader."
+        );
+        println!(
+            "cargo:warning={}",
+            "Flash the compiled binary to the board directly."
+        );
         "memory.dev.x"
     } else {
         "memory.prod.x"

@@ -304,9 +304,9 @@ checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
 
 [[package]]
 name = "max78000-pac"
-version = "0.3.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a92e5c8098687962edbf581e61913314363c00402a0d657f59f8218b5d9a129"
+checksum = "5eed83061e0ef10b5fe367de6701648384e75f3b0a2fadced4877efd505e49d5"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
@@ -316,9 +316,9 @@ dependencies = [
 
 [[package]]
 name = "max7800x-hal"
-version = "0.5.1"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f97b28e604d1684a1fa91a2f2abba634dd18370f90752534528506eaf1bb5a7"
+checksum = "80d23baebcf697f4622b986f68728aa258ff5d380ed8e06f9ce7f657a59fb164"
 dependencies = [
  "cortex-m",
  "cortex-m-rt",
