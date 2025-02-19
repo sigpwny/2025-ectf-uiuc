@@ -2,7 +2,7 @@
   pkgs ? import <nixpkgs> { },
 }:
 let
-  overrides = (builtins.fromTOML (builtins.readFile ./rust-toolchain.toml));
+  overrides = (builtins.fromTOML (builtins.readFile ./decoder/rust-toolchain.toml));
 in
 pkgs.callPackage (
   {
