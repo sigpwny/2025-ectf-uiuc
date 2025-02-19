@@ -4,6 +4,11 @@ skip_core_tasks = true
 [tasks.default]
 alias = "build-firmware"
 
+[tasks.clean]
+script_runner = "@shell"
+script = "rm -f ./out/max78000.bin"
+
 [tasks.build-firmware]
+dependencies = ["clean"]
 command = "cargo"
 args = ["run", "--release"]

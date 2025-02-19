@@ -5,19 +5,19 @@ skip_core_tasks = true
 alias = "build-release-flow"
 
 [tasks.build-release-flow]
-dependencies = ["build-release"]
-
-[tasks.clean]
-command = "cargo"
-args = ["clean"]
+dependencies = ["clean", "build-release"]
 
 [tasks.build-release]
 description = "Full production build"
 command = "cargo"
 # args = ["build", "--release"]
-args = ["objcopy", "--release", "--", "-O", "binary", "./out/max78000.bin"]
+args = ["objcopy", "--release", "--", "-O", "binary", "./out/decoder.bin"]
 
 [tasks.build-dev]
 description = "Full development build"
 command = "cargo"
 args = ["build --dev"]
+
+[tasks.clean]
+script_runner = "@shell"
+script = "rm -f ./out/decoder.bin"
