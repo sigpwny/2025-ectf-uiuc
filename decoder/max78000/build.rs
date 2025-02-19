@@ -12,14 +12,33 @@
 
 use std::env;
 use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=DECODER_ID");
+    if std::env::var("DECODER_ID").is_err() {
+        panic!("DECODER_ID must be set in environment variables!");
+    } else {
+        println!(
+            "cargo:warning=Compiling for DECODER_ID: {}",
+            std::env::var("DECODER_ID").unwrap()
+        );
+    }
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
     let target_memory_x = if std::env::var("CARGO_FEATURE_NO_BOOTLOADER").is_ok() {
-        println!("cargo:warning={}", "Using direct flash memory layout");
+        println!(
+            "cargo:warning={}",
+            "Compiling using direct flash memory layout!"
+        );
+        println!(
+            "cargo:warning={}",
+            "You will not be able to flash the compiled binary using the eCTF bootloader."
+        );
+        println!(
+            "cargo:warning={}",
+            "Flash the compiled binary to the board directly."
+        );
         "memory.dev.x"
     } else {
         "memory.prod.x"

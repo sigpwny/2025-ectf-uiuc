@@ -1,0 +1,9 @@
+[config]
+skip_core_tasks = true
+
+[tasks.default]
+alias = "build-firmware"
+
+[tasks.build-firmware]
+command = "cargo"
+args = ["run", "--release"]

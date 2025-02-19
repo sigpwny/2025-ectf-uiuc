@@ -1,0 +1,4 @@
+[toolchain]
+channel = "stable"
+components = [ "llvm-tools", "rustfmt", "rustc-dev" ]
+targets = [ "thumbv7em-none-eabihf" ]

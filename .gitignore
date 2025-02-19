@@ -22,3 +22,7 @@ target/
 # Python virtual environment
 .venv/
 venv/
+
+# eCTF 2025
+global.secrets
+out/
