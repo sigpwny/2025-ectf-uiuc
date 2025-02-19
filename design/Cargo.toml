@@ -9,7 +9,7 @@ name = "ectf25_design"
 crate-type = ["cdylib"]
 
 [dependencies]
-common = { path = "../common" }
+common = { path = "../decoder/common" }
 #serde = { version = "1.0.217", default-features = false }
 hmac = "0.12"  # HMAC library
 sha2 = "0.10"  # SHA-256/SHA-512 hashing

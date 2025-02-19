@@ -1,6 +1,5 @@
 [package]
 name = "common"
-version = "0.1.0"
 authors = ["SIGPwny <hello@sigpwny.com>"]
 edition = "2021"
 publish = false
