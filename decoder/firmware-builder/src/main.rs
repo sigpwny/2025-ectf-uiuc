@@ -1,3 +1,4 @@
+use common::secrets::Secrets;
 use rand::Rng;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -26,6 +27,14 @@ fn main() -> std::io::Result<()> {
         //     max_size: 1 * FLASH_PAGE_SIZE,
         // }
     ];
+
+    // Read in global.secrets
+    let mut secrets_file = File::open("../max78000/global.secrets")?;
+    let mut secrets_data = Vec::new();
+    secrets_file.read_to_end(&mut secrets_data)?;
+    let secrets: Secrets = serde_json::from_slice(&secrets_data).unwrap();
+
+    println!("Secrets: {:?}", secrets);
 
     // Fill firmware with random data
     let mut firmware = vec![0xFF; FIRMWARE_SIZE];

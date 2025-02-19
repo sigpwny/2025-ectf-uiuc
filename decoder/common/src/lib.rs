@@ -1,4 +1,10 @@
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
+/// secrets module is used by both the ectf25_design package and build scripts
+#[cfg(feature = "std")]
+pub mod secrets;
+
+pub const MAX_STANDARD_CHANNEL: u32 = 8;
 
 #[derive(Debug)]
 pub struct Subscription {
