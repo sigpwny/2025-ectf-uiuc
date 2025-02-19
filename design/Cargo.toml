@@ -1,12 +1,18 @@
 [package]
-name = "ectf25_design"
-version = "0.1.0"
+name = "ectf25-design"
+version = "0.1.0+uiuc"
 edition = "2021"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "ectf25_design"
+crate-type = ["cdylib"]
+
 [dependencies]
-common = { path = "../../common" }
+common = { path = "../common" }
 #serde = { version = "1.0.217", default-features = false }
 hmac = "0.12"  # HMAC library
 sha2 = "0.10"  # SHA-256/SHA-512 hashing
 ascon-aead = "0.4.2"  # Ascon AEAD implementation
 crypto-common = "0.1.6"
+pyo3 = "0.23.3"
