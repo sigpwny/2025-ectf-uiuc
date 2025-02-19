@@ -1,0 +1,31 @@
+[config]
+skip_core_tasks = true
+
+[tasks.default]
+alias = "release-flow"
+
+[tasks.docker-flow]
+description = "Builds the decoder within Docker using the expected input and output mounts (/decoder, /global.secrets, /out)."
+dependencies = [
+  "pre-docker",
+  "release-flow",
+  "post-docker"
+]
+
+[tasks.pre-docker]
+# TODO: copy the /global.secrets file into the max78000 directory
+
+[tasks.post-docker]
+# TODO: copy the built firmware to the /out directory
+
+[tasks.release-flow]
+description = "Full production build"
+dependencies = [
+  "clean",
+  { name = "build-release-flow", path = "max78000/Makefile.toml" },
+  { name = "build-firmware", path = "firmware-builder/Makefile.toml" },
+]
+
+[tasks.clean]
+# description = "Clean the build artifacts"
+script = "echo TODO: Cleaning..."
