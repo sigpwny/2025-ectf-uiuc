@@ -15,6 +15,15 @@ use std::fs::File;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-env-changed=DECODER_ID");
+    if std::env::var("DECODER_ID").is_err() {
+        panic!("DECODER_ID must be set in environment variables!");
+    } else {
+        println!(
+            "cargo:warning=Compiling for DECODER_ID: {}",
+            std::env::var("DECODER_ID").unwrap()
+        );
+    }
     // Put `memory.x` in our output directory and ensure it's
     // on the linker search path.
     let target_memory_x = if std::env::var("CARGO_FEATURE_NO_BOOTLOADER").is_ok() {

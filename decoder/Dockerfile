@@ -1,36 +1,28 @@
-# Dockerfile for the 2025 eCTF SIGPwny design
+# Example usage:
+# docker build -t decoder:uiuc .
+# docker run -t --rm -v .\decoder/:/decoder -v .\global.secrets:/global.secrets -v .\out:/out -e DECODER_ID=0xdeadbeef decoder:uiuc
 
-# Get latest version of rust
 FROM rust:latest
 
 WORKDIR /decoder
 
-# Install Requisite Packages 
-# Step 1
-RUN apt-get update && apt-get install -y \
-    gdb \
-    gcc-arm-none-eabi \
-    binutils-arm-none-eabi \
-    make \
-    python3.10 \
-    libudev-dev
-    # wget \
-    # unzip    
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
 
-# Install MSDK
-# Step 2
-# RUN apt-get install -y unzip && \
-#     wget https://github.com/analogdevicesinc/msdk/archive/refs/tags/v2024_02.zip && \
-#     unzip v2024_02.zip && \
-#     rm -f v2024_02.zip
+# Install cargo-make
+RUN cargo install --force cargo-make
 
-# ENV MAXIM_PATH=/root/msdk-2024_02
+# Install cargo-binutils
+# RUN cargo install cargo-binutils
+ARG CARGO_BINUTILS_VERSION=0.3.6
+ARG CARGO_BINUTILS_TARGET
+RUN set -eux; \
+    : "${CARGO_BINUTILS_TARGET:=$(rustc -vV | sed -n 's|host: ||p')}"; \
+    URL="https://github.com/rust-embedded/cargo-binutils/releases/download/v${CARGO_BINUTILS_VERSION}/${CARGO_BINUTILS_TARGET}.tar.gz"; \
+    curl -L "$URL" | tar -xz -C /usr/local/bin --strip-components=1; \
+    chmod +x /usr/local/bin/*
 
-RUN rustup default beta && rustup target add thumbv7em-none-eabihf
+# Install Rust toolchain targets and components
+COPY rust-toolchain.toml rust-toolchain.toml
+RUN rustup show
 
-# ENTRYPOINT ["bash", "-c", "make release DECODER_ID=${DECODER_ID} && cp build/max78000.elf build/max78000.bin /out"]
-ENTRYPOINT ["cargo", "build", "--release"]
-
-# Sample run command:
-# docker build -t decoder:uiuc .
-# docker run --rm -v ./build_out:/out -v ./:/decoder -v ./secrets:/secrets -e DECODER_ID=0xdeadbeef decoder-uiuc
+ENTRYPOINT ["bash", "-c", "cargo make --profile production --env DECODER_ID=${DECODER_ID} docker-flow"]

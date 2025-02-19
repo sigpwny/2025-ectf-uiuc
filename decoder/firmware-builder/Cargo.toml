@@ -1,0 +1,7 @@
+[package]
+name = "firmware-builder"
+authors = ["SIGPwny <hello@sigpwny.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
