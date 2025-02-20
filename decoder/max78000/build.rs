@@ -15,6 +15,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-changed=global.secrets");
     println!("cargo:rerun-if-env-changed=DECODER_ID");
     if std::env::var("DECODER_ID").is_err() {
         panic!("DECODER_ID must be set in environment variables!");
