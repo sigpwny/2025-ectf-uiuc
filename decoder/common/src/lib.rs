@@ -48,7 +48,7 @@ pub struct EncryptedPicture([u8; 80]);
 /// encrypted frame data but decrypted versions of the channel ID, timestamp, and frame length.
 #[derive(Debug)]
 pub struct DecryptedFrame {
-    frame_data: EncryptedPicture,
+    encrypted_picture: EncryptedPicture,
     channel_id: u32,
     timestamp: u64,
     frame_length: u8,
