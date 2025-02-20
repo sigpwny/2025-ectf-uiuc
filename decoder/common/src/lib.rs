@@ -40,15 +40,15 @@ pub struct StoredSubscriptionList([Option<StoredSubscription>; 8]);
 #[derive(Debug)]
 pub struct EncryptedFrame([u8; 109]);
 
-/// Encrypted frame data, stored in a Frame object.
+/// Encrypted frame data, stored in a DecryptedFrame object.
 #[derive(Debug)]
-pub struct EncryptedFrameData([u8; 80]);
+pub struct EncryptedPicture([u8; 80]);
 
 /// An object representing a frame halfway through the decryption process. It contains the
 /// encrypted frame data but decrypted versions of the channel ID, timestamp, and frame length.
 #[derive(Debug)]
-pub struct Frame {
-    frame_data: EncryptedFrameData,
+pub struct DecryptedFrame {
+    frame_data: EncryptedPicture,
     channel_id: u32,
     timestamp: u64,
     frame_length: u8,
@@ -56,7 +56,7 @@ pub struct Frame {
 
 /// The final 64-byte decrypted frame
 #[derive(Debug)]
-pub struct DecryptedFrameData([u8; 64]);
+pub struct Picture([u8; 64]);
 
 /// A trait that allows an object to be serialized to and deserialized from a fixed-size byte
 /// array.
