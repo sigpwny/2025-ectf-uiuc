@@ -4,6 +4,7 @@
 #[cfg(feature = "std")]
 pub mod secrets;
 
+pub const LEN_ASCON_KEY: usize = 16;
 pub const MAX_STANDARD_CHANNEL: u32 = 8;
 
 /// The subscription update payload received from the host.
