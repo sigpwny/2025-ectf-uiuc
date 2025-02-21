@@ -1,5 +1,5 @@
-use common::secrets::{ChannelSecret, Secrets, LEN_SECRET_BYTES};
-use common::MAX_STANDARD_CHANNEL;
+use common::secrets::{ChannelSecret, Secrets};
+use common::{LEN_ASCON_KEY, MAX_STANDARD_CHANNEL};
 use pyo3::prelude::*;
 use rand::Rng;
 use serde::Serialize;
@@ -10,8 +10,8 @@ use serde_json::Result;
 fn gen_secrets(channels: Vec<u32>) -> Vec<u8> {
     let mut rng = rand::rng();
     let mut secrets = Secrets {
-        frame: rng.random::<[u8; LEN_SECRET_BYTES]>(),
-        subscription: rng.random::<[u8; LEN_SECRET_BYTES]>(),
+        frame: rng.random::<[u8; LEN_ASCON_KEY]>(),
+        subscription: rng.random::<[u8; LEN_ASCON_KEY]>(),
         channels: Vec::new(),
     };
 
@@ -21,7 +21,7 @@ fn gen_secrets(channels: Vec<u32>) -> Vec<u8> {
     seen_channels.insert(0);
     secrets.channels.push(ChannelSecret {
         id: 0,
-        secret: rng.random::<[u8; LEN_SECRET_BYTES]>(),
+        secret: rng.random::<[u8; LEN_ASCON_KEY]>(),
     });
 
     for channel in channels {
@@ -36,7 +36,7 @@ fn gen_secrets(channels: Vec<u32>) -> Vec<u8> {
         }
         secrets.channels.push(ChannelSecret {
             id: channel,
-            secret: rng.random::<[u8; LEN_SECRET_BYTES]>(),
+            secret: rng.random::<[u8; LEN_ASCON_KEY]>(),
         });
     }
     serde_json::to_vec(&secrets).expect("Failed to serialize secrets")
