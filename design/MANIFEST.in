@@ -1,0 +1,3 @@
+include wheels/*.whl
+include wheels/*.zip
+include wheels/*.tar.gz
