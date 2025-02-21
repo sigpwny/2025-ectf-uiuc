@@ -5,7 +5,7 @@
 pub mod secrets;
 
 // Number-related constants
-pub const MAX_STANDARD_CHANNEL: usize = 8;
+pub const MAX_STANDARD_CHANNEL: u32 = 8;
 
 // Encryption-related constants
 pub const AEAD_ENCRYPTION_OVERHEAD: usize = 16;
@@ -20,9 +20,10 @@ pub const LEN_STORED_SUBSCRIPTION: usize = LEN_SUBSCRIPTION_INFO + LEN_CHANNEL_S
 pub const LEN_ENCRYPTED_SUBSCRIPTION: usize = LEN_SUBSCRIPTION_INFO + AEAD_ENCRYPTION_OVERHEAD;
 
 // Subscription list-related constants
-pub const LEN_SUBSCRIPTION_INFO_LIST: usize = MAX_STANDARD_CHANNEL * LEN_SUBSCRIPTION_INFO;
+pub const LEN_STANDARD_CHANNELS: usize = MAX_STANDARD_CHANNEL as usize;
+pub const LEN_SUBSCRIPTION_INFO_LIST: usize = LEN_STANDARD_CHANNELS * LEN_SUBSCRIPTION_INFO;
 pub const LEN_SUBSCRIPTION_INFO_LIST_BYTES: usize = LEN_SUBSCRIPTION_INFO_LIST + 4;  // The 4 accounts for the 32-bit "number of channels" requirement in host tools
-pub const LEN_STORED_SUBSCRIPTION_LIST: usize = MAX_STANDARD_CHANNEL * LEN_STORED_SUBSCRIPTION;
+pub const LEN_STORED_SUBSCRIPTION_LIST: usize = LEN_STANDARD_CHANNELS * LEN_STORED_SUBSCRIPTION;
 pub const LEN_STORED_SUBSCRIPTION_LIST_BYTES: usize = LEN_STORED_SUBSCRIPTION_LIST + 1;
 
 // Frame-related constants
@@ -66,11 +67,11 @@ pub struct StoredSubscription {
 
 /// A list of 8 optional SubscriptionInfo objects for each channel.
 #[derive(Debug)]
-pub struct SubscriptionInfoList([Option<SubscriptionInfo>; MAX_STANDARD_CHANNEL]);
+pub struct SubscriptionInfoList([Option<SubscriptionInfo>; LEN_STANDARD_CHANNELS]);
 
 /// A list of 8 optional StoredSubscription objects for each channel.
 #[derive(Debug)]
-pub struct StoredSubscriptionList([Option<StoredSubscription>; MAX_STANDARD_CHANNEL]);
+pub struct StoredSubscriptionList([Option<StoredSubscription>; LEN_STANDARD_CHANNELS]);
 
 // 80 bytes of frame data, 4 bytes of channel ID, 8 bytes of timestamp, 1 byte of frame length
 // Plus 16 bytes from encryption
@@ -159,7 +160,7 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO_LIST_BYTES> for SubscriptionInfoLis
 
         // The first 4 bytes is the number of valid subscriptions
         let mut num_valid: u32 = 0;
-        for i in 0..MAX_STANDARD_CHANNEL {
+        for i in 0..LEN_STANDARD_CHANNELS {
             if self.0[i].is_some() {
                 num_valid += 1;
             }
@@ -169,7 +170,7 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO_LIST_BYTES> for SubscriptionInfoLis
 
         // The rest of the bytes are the serialized subscriptions
         let mut offset = 4;
-        for i in 0..MAX_STANDARD_CHANNEL {
+        for i in 0..LEN_STANDARD_CHANNELS {
             if let Some(sub) = self.0[i].as_ref() {
                 bytes[offset..offset + LEN_SUBSCRIPTION_INFO].copy_from_slice(&sub.to_bytes());
                 offset += LEN_SUBSCRIPTION_INFO;
@@ -180,7 +181,7 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO_LIST_BYTES> for SubscriptionInfoLis
     }
 
     fn from_bytes(bytes: [u8; LEN_SUBSCRIPTION_INFO_LIST_BYTES]) -> Self {
-        let mut subscription_info_list = [const{ None }; MAX_STANDARD_CHANNEL];
+        let mut subscription_info_list = [const{ None }; LEN_STANDARD_CHANNELS];
 
         let num_valid = usize::from_be_bytes(bytes[..4].try_into().unwrap());
         let mut offset = 4;
@@ -199,7 +200,7 @@ impl BytesSerializable<LEN_STORED_SUBSCRIPTION_LIST_BYTES> for StoredSubscriptio
 
         // The first byte is a bitmask that indicates which subscriptions are present
         let mut bitmask = 0;
-        for i in 0..MAX_STANDARD_CHANNEL {
+        for i in 0..LEN_STANDARD_CHANNELS {
             if self.0[i].is_some() {
                 bitmask |= 1 << i;
             }
@@ -208,7 +209,7 @@ impl BytesSerializable<LEN_STORED_SUBSCRIPTION_LIST_BYTES> for StoredSubscriptio
 
         // The rest of the bytes are the serialized subscriptions
         let mut offset = 1;
-        for i in 0..MAX_STANDARD_CHANNEL {
+        for i in 0..LEN_STANDARD_CHANNELS {
             if let Some(sub) = self.0[i].as_ref() {
                 bytes[offset..offset + LEN_STORED_SUBSCRIPTION].copy_from_slice(&sub.to_bytes());
             }
@@ -219,11 +220,11 @@ impl BytesSerializable<LEN_STORED_SUBSCRIPTION_LIST_BYTES> for StoredSubscriptio
     }
 
     fn from_bytes(bytes: [u8; LEN_STORED_SUBSCRIPTION_LIST_BYTES]) -> Self {
-        let mut stored_subscription_list = [const{ None }; MAX_STANDARD_CHANNEL];
+        let mut stored_subscription_list = [const{ None }; LEN_STANDARD_CHANNELS];
 
         let bitmask = bytes[0];
         let mut offset = 1;
-        for i in 0..MAX_STANDARD_CHANNEL {
+        for i in 0..LEN_STANDARD_CHANNELS {
             if bitmask & (1 << i) != 0 {
                 stored_subscription_list[i] = Some(StoredSubscription::from_bytes(bytes[offset..offset + LEN_STORED_SUBSCRIPTION].try_into().unwrap()));
             }
