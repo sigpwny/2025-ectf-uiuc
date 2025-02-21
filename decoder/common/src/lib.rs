@@ -6,6 +6,10 @@ pub mod secrets;
 
 pub const MAX_STANDARD_CHANNEL: u32 = 8;
 
+// Channel Secret Wrapper
+#[derive(Debug)]
+pub struct ChannelSecret([u8; 32]);
+
 /// The subscription update payload received from the host.
 #[derive(Debug)]
 pub struct EncryptedSubscription([u8; 68]);
@@ -23,7 +27,7 @@ pub struct SubscriptionInfo {
 #[derive(Debug)]
 pub struct StoredSubscription {
     info: SubscriptionInfo,
-    channel_secret: [u8; 32],
+    channel_secret: ChannelSecret,
 }
 
 /// A list of 8 optional SubscriptionInfo objects for each channel.
