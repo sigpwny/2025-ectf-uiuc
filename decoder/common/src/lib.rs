@@ -32,9 +32,17 @@ pub const LEN_ENCRYPTED_PICTURE: usize = LEN_PICTURE + AEAD_ENCRYPTION_OVERHEAD;
 pub const LEN_DECRYPTED_FRAME: usize = LEN_ENCRYPTED_PICTURE + LEN_CHANNEL_ID + LEN_TIMESTAMP + LEN_FRAME_LENGTH;
 pub const LEN_ENCRYPTED_FRAME: usize = LEN_DECRYPTED_FRAME + AEAD_ENCRYPTION_OVERHEAD;
 
-// Channel Secret Wrapper
+/// The Channel Secret which is given with a subscription.
 #[derive(Debug)]
 pub struct ChannelSecret([u8; LEN_CHANNEL_SECRET]);
+
+/// The Picture Key which is derived with a particular frame.
+#[derive(Debug)]
+pub struct PictureKey([u8; LEN_ASCON_KEY]);
+
+/// The Subscription Key which is derived with a particular frame.
+#[derive(Debug)]
+pub struct SubscriptionKey([u8; LEN_ASCON_KEY]);
 
 /// The subscription update payload received from the host.
 #[derive(Debug)]
