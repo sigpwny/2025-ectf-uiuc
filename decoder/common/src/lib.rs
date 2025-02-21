@@ -128,7 +128,7 @@ impl BytesSerializable<LEN_STORED_SUBSCRIPTION> for StoredSubscription {
         let mut bytes = [0; LEN_STORED_SUBSCRIPTION];
 
         bytes[..LEN_SUBSCRIPTION_INFO].copy_from_slice(&self.info.to_bytes());
-        bytes[LEN_SUBSCRIPTION_INFO..].copy_from_slice(&self.channel_secret);
+        bytes[LEN_SUBSCRIPTION_INFO..].copy_from_slice(&self.channel_secret.0);
 
         bytes
     }
@@ -140,7 +140,7 @@ impl BytesSerializable<LEN_STORED_SUBSCRIPTION> for StoredSubscription {
 
         StoredSubscription {
             info,
-            channel_secret
+            channel_secret: ChannelSecret(channel_secret),
         }
     }
 }
