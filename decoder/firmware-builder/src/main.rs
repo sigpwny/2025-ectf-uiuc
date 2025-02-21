@@ -21,6 +21,10 @@ fn main() -> std::io::Result<()> {
             address: 0x00000000,
             max_size: 26 * FLASH_PAGE_SIZE,
         },
+
+        // page 27 (index 26) is the global secrets
+        // page 28 (index 27) is the subscription
+
         // Segment {
         //     path: "",
         //     address: 26 * FLASH_PAGE_SIZE,
