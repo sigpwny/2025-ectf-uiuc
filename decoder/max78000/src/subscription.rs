@@ -1,7 +1,7 @@
 use common::{SubscriptionInfo, SubscriptionInfoList};
-use max7800x_hal::flc::{Flc, FLASH_BASE, FLASH_PAGE_SIZE}
+use max7800x_hal::flc::{Flc, FlashError, FLASH_BASE, FLASH_PAGE_SIZE}
 
-pub const FLASH_ADDR_SUBSCRIPTION_BASE: usize = FLASH_BASE + (48 * FLASH_PAGE_SIZE);
+pub const FLASH_ADDR_SUBSCRIPTION_BASE: u32 = FLASH_BASE + (27 * FLASH_PAGE_SIZE);
 
 // assert_eq!(FLASH_ADDR_SUBSCRIPTION_BASE, 0x10060000);
 
@@ -14,26 +14,30 @@ pub const FLASH_ADDR_SUBSCRIPTION_BASE: usize = FLASH_BASE + (48 * FLASH_PAGE_SI
 // 0x1003_6000 - 0x1003_7FFF (size: 0x2000, which is 8192 bytes) - subscription storage
 // index 27
 // channel 0 subscription (valid for 0x0 - max timestamp (u64))
-// each subscription: 8 bytes (start) + 8 bytes (end) + 16 bytes (0x00) + 32 bytes (channel secret)
+// each subscription: 16 bytes (0x53) + 8 bytes (start) + 8 bytes (end) + 32 bytes (channel secret)
 
 // 0x1008_0000 (64 pages total)
 
 // https://docs.rs/max7800x-hal/latest/max7800x_hal/flc/struct.Flc.html
 
 
-
-pub fn update_subscription(flc: &mut Flc, ????) {
-
+// This is only called after we have verified/authenticated/decrypted the update subscription message
+pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscriptionList) -> Result<(), FlashError> {
+    unsafe {
+        flc.erase_page(FLASH_ADDR_SUBSCRIPTION_BASE)?;
+    }
+    // let _ = flc.write_128(...)?;
 }
 
 // For the decoder function
-pub fn get_channel_subscription_info(flc: &mut Flc, channel_id: u32) -> SubscriptionInfo {
+pub fn get_channel_subscription(flc: &mut Flc, channel_id: u32) -> Result<StoredSubscription, ()> {
     // Ensure channel ID is 0-8 (inclusive)
+    // make sure to validate first 16 bytes are 0x53
 }
 
 // For list subscriptions
 pub fn get_subscriptions(flc: &mut Flc) -> SubscriptionInfoList {
-    // call get_channel_subscription_info for each channel
+    // call get_channel_subscription_info for each channel (1-8)
 }
 
 /*
