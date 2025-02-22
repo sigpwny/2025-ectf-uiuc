@@ -32,7 +32,48 @@ pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscriptionList) 
 // For the decoder function
 pub fn get_channel_subscription(flc: &mut Flc, channel_id: u32) -> Result<StoredSubscription, ()> {
     // Ensure channel ID is 0-8 (inclusive)
-    // make sure to validate first 16 bytes are 0x53
+    if channel_id < 0 || channel_id > 8 {
+        return Ok(());
+    }
+    
+    let subscription_loc: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + channel_id * 64;
+    
+    // make sure to validate first 16 bytes are 0x53 
+    let header: [u32; 4] = flc.read_128(subscription_loc).unwrap();
+    for i in 0..4 {
+        if header[i] != 0x5353_5353 {
+            return Ok(());
+        }
+    }
+
+    let timestamps: [u32; 4] = flc.read_128(subscription_loc + 64).unwrap();
+    let start: u64 = ((timestamps[0] as u64) << 32) + (timestamps[1] as u64); // could be a catastrophic bit fiddling error
+    let end: u64 = ((timestamps[2] as u64) << 32) + (timestamps[3] as u64);   // here too
+    let info: SubscriptionInfo = SubscriptionInfo {
+        channel_id,
+        start,
+        end
+    }
+
+    let sec_p1: [u32; 4] = flc.read_128(subscription_loc + 64*2).unwrap();
+    let sec_p2: [u32; 4] = flc.read_128(subscription_loc + 64*3).unwrap();
+    let channel_secret: [u8; 32] = [0; 32];
+    for i in 0..8 {
+        let b1: u8 = if i < 4 { ((sec_p1[i] & 0xFF00_0000) >> 24) as u8 } else { ((sec_p2[4 - i] & 0xFF00_0000) >> 24) as u8 }; // this could also be a bit fiddling tragedy
+        let b2: u8 = if i < 4 { ((sec_p1[i] & 0x00FF_0000) >> 16) as u8 } else { ((sec_p2[4 - i] & 0x00FF_0000) >> 16) as u8 };
+        let b3: u8 = if i < 4 { ((sec_p1[i] & 0x0000_FF00) >>  8) as u8 } else { ((sec_p2[4 - i] & 0x0000_FF00) >>  8) as u8 };
+        let b4: u8 = if i < 4 { ((sec_p1[i] & 0x0000_00FF) >>  0) as u8 } else { ((sec_p2[4 - i] & 0x0000_00FF) >>  0) as u8 };
+
+        channel_secret[4*i] = b1;
+        channel_secret[4*i + 1] = b2;
+        channel_secret[4*i + 2] = b3;
+        channel_secret[4*i + 3] = b4;
+    }
+
+    return Ok(StoredSubscription {
+        info,
+        channel_secret
+    })
 }
 
 // For list subscriptions
