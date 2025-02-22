@@ -69,15 +69,21 @@ pub struct StoredSubscription {
 #[derive(Debug)]
 pub struct SubscriptionInfoList([Option<SubscriptionInfo>; LEN_STANDARD_CHANNELS]);
 
+impl MessageOpcode<b'S'> for SubscriptionInfoList {}
+
 /// A list of 8 optional StoredSubscription objects for each channel.
 #[derive(Debug)]
 pub struct StoredSubscriptionList([Option<StoredSubscription>; LEN_STANDARD_CHANNELS]);
+
+impl MessageOpcode<b'L'> for StoredSubscriptionList {}
 
 // 80 bytes of frame data, 4 bytes of channel ID, 8 bytes of timestamp, 1 byte of frame length
 // Plus 16 bytes from encryption
 /// The frame payload received from the host.
 #[derive(Debug)]
 pub struct EncryptedFrame([u8; LEN_ENCRYPTED_FRAME]);
+
+impl MessageOpcode<b'D'> for EncryptedFrame {}
 
 /// Encrypted frame data, stored in a DecryptedFrame object.
 #[derive(Debug)]
@@ -102,6 +108,14 @@ pub struct Picture([u8; LEN_PICTURE]);
 pub trait BytesSerializable<const L: usize> {
     fn to_bytes(&self) -> [u8; L];
     fn from_bytes(bytes: [u8; L]) -> Self;
+    fn get_length(&self) -> usize {
+        L
+    }
+}
+
+/// A trait that specifies a message opcode for retrieving a Mitre-defined opcode
+pub trait MessageOpcode<const C: u8> {
+    const OPCODE: u8 = C;
 }
 
 /// Follows the format:
