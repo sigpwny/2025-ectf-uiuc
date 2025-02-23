@@ -32,7 +32,7 @@ pub fn update_subscription(flc: &mut Flc, subscription_list: StoredSubscriptionL
 
         // if subscription_entry is not None
         if let Some(subscription) = subscription_entry {
-            
+
             // Serialize a stored subscription
             let serialized_stored_subscription: [u8; 52] = subscription.to_bytes();
 
@@ -47,10 +47,10 @@ pub fn update_subscription(flc: &mut Flc, subscription_list: StoredSubscriptionL
             let chunk = &serialized_subscription[start..end];
 
             let chunk_u32: [u32; 4] = [
-                u32::from_le_bytes(chunk[0..4].try_into().unwrap()),
-                u32::from_le_bytes(chunk[4..8].try_into().unwrap()),
-                u32::from_le_bytes(chunk[8..12].try_into().unwrap()),
-                u32::from_le_bytes(chunk[12..16].try_into().unwrap()),
+                u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]),
+                u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]),
+                u32::from_le_bytes([chunk[8], chunk[9], chunk[10], chunk[11]]),
+                u32::from_le_bytes([chunk[12], chunk[13], chunk[14], chunk[15]]),
             ];
 
             flc.write_128(FLASH_ADDR_SUBSCRIPTION_BASE + (subscription_entry.info.channel_id * 64) + (i * 16), &chunk_u32)?;
