@@ -1,49 +1,41 @@
-#![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![cfg_attr(not(test), no_std)]
 
-/// secrets module is used by both the ectf25_design package and build scripts
-#[cfg(feature = "std")]
-pub mod secrets;
+pub mod constants;
+use constants::*;
+use serde::{Deserialize, Serialize};
 
-// Number-related constants
-pub const MAX_STANDARD_CHANNEL: u32 = 8;
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct BaseChannelSecret(pub [u8; LEN_BASE_CHANNEL_SECRET]);
 
-// Encryption-related constants
-pub const AEAD_ENCRYPTION_OVERHEAD: usize = 16;
-pub const LEN_ASCON_KEY: usize = 16;
-pub const LEN_CHANNEL_SECRET: usize = 32;
-
-// Subscription-related constants
-pub const LEN_CHANNEL_ID: usize = 4;
-pub const LEN_TIMESTAMP: usize = 8;
-pub const LEN_SUBSCRIPTION_INFO: usize = LEN_CHANNEL_ID + 2 * LEN_TIMESTAMP;
-pub const LEN_STORED_SUBSCRIPTION: usize = LEN_SUBSCRIPTION_INFO + LEN_CHANNEL_SECRET;
-pub const LEN_ENCRYPTED_SUBSCRIPTION: usize = LEN_SUBSCRIPTION_INFO + AEAD_ENCRYPTION_OVERHEAD;
-
-// Subscription list-related constants
-pub const LEN_STANDARD_CHANNELS: usize = MAX_STANDARD_CHANNEL as usize;
-pub const LEN_SUBSCRIPTION_INFO_LIST: usize = LEN_STANDARD_CHANNELS * LEN_SUBSCRIPTION_INFO;
-pub const LEN_SUBSCRIPTION_INFO_LIST_BYTES: usize = LEN_SUBSCRIPTION_INFO_LIST + 4;  // The 4 accounts for the 32-bit "number of channels" requirement in host tools
-pub const LEN_STORED_SUBSCRIPTION_LIST: usize = LEN_STANDARD_CHANNELS * LEN_STORED_SUBSCRIPTION;
-pub const LEN_STORED_SUBSCRIPTION_LIST_BYTES: usize = LEN_STORED_SUBSCRIPTION_LIST + 1;
-
-// Frame-related constants
-pub const LEN_FRAME_LENGTH: usize = 1;
-pub const LEN_PICTURE: usize = 64;
-pub const LEN_ENCRYPTED_PICTURE: usize = LEN_PICTURE + AEAD_ENCRYPTION_OVERHEAD;
-pub const LEN_DECRYPTED_FRAME: usize = LEN_ENCRYPTED_PICTURE + LEN_CHANNEL_ID + LEN_TIMESTAMP + LEN_FRAME_LENGTH;
-pub const LEN_ENCRYPTED_FRAME: usize = LEN_DECRYPTED_FRAME + AEAD_ENCRYPTION_OVERHEAD;
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct BaseSubscriptionSecret(pub [u8; LEN_BASE_SUBSCRIPTION_SECRET]);
 
 /// The Channel Secret which is given with a subscription.
-#[derive(Debug)]
-pub struct ChannelSecret([u8; LEN_CHANNEL_SECRET]);
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct ChannelSecret(pub [u8; LEN_CHANNEL_SECRET]);
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct FrameKey(pub [u8; LEN_ASCON_KEY]);
 
 /// The Picture Key which is derived with a particular frame.
-#[derive(Debug)]
-pub struct PictureKey([u8; LEN_ASCON_KEY]);
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PictureKey(pub [u8; LEN_ASCON_KEY]);
 
 /// The Subscription Key which is derived with a particular frame.
-#[derive(Debug)]
-pub struct SubscriptionKey([u8; LEN_ASCON_KEY]);
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct SubscriptionKey(pub [u8; LEN_ASCON_KEY]);
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DeploymentSecrets {
+    pub frame_key: FrameKey,
+    pub base_channel_secret: BaseChannelSecret,
+    pub base_subscription_secret: BaseSubscriptionSecret,
+}
 
 /// The subscription update payload received from the host.
 #[derive(Debug)]

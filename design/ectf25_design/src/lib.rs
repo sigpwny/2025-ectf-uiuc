@@ -1,44 +1,29 @@
-use common::secrets::{ChannelSecret, Secrets};
-use common::{LEN_ASCON_KEY, MAX_STANDARD_CHANNEL};
+use common::{
+    FrameKey,
+    BaseChannelSecret,
+    BaseSubscriptionSecret,
+    DeploymentSecrets,
+};
+use common::constants::{
+    LEN_ASCON_KEY,
+    LEN_BASE_CHANNEL_SECRET,
+    LEN_BASE_SUBSCRIPTION_SECRET,
+    MAX_STANDARD_CHANNEL,
+}
 use pyo3::prelude::*;
 use rand::Rng;
-use serde::Serialize;
-use serde_json::Result;
 
 /// Generate secrets given a list of channel IDs.
 #[pyfunction]
 fn gen_secrets(channels: Vec<u32>) -> Vec<u8> {
+    let _ = channels;
     let mut rng = rand::rng();
-    let mut secrets = Secrets {
-        frame: rng.random::<[u8; LEN_ASCON_KEY]>(),
-        subscription: rng.random::<[u8; LEN_ASCON_KEY]>(),
-        channels: Vec::new(),
+    let secrets = DeploymentSecrets {
+        frame_key: FrameKey(rng.random::<[u8; LEN_ASCON_KEY]>()),
+        base_channel_secret: BaseChannelSecret(rng.random::<[u8; LEN_BASE_CHANNEL_SECRET]>()),
+        base_subscription_secret: BaseSubscriptionSecret(rng.random::<[u8; LEN_BASE_SUBSCRIPTION_SECRET]>()),
     };
 
-    let mut seen_channels = std::collections::HashSet::new();
-
-    // Always add channel 0
-    seen_channels.insert(0);
-    secrets.channels.push(ChannelSecret {
-        id: 0,
-        secret: rng.random::<[u8; LEN_ASCON_KEY]>(),
-    });
-
-    for channel in channels {
-        if channel > MAX_STANDARD_CHANNEL {
-            panic!(
-                "Channel ID {} exceeds maximum allowed channel ID {}",
-                channel, MAX_STANDARD_CHANNEL
-            );
-        }
-        if !seen_channels.insert(channel) {
-            panic!("Duplicate channel ID {} was provided", channel);
-        }
-        secrets.channels.push(ChannelSecret {
-            id: channel,
-            secret: rng.random::<[u8; LEN_ASCON_KEY]>(),
-        });
-    }
     serde_json::to_vec(&secrets).expect("Failed to serialize secrets")
 }
 
@@ -62,7 +47,7 @@ fn gen_subscription(
 
 #[pyclass]
 struct Encoder {
-    secrets: Vec<u8>,
+    secrets: DeploymentSecrets,
 }
 
 /// Encoder class for encoding frames.
@@ -71,13 +56,17 @@ impl Encoder {
     /// Initialize the encoder with the given secrets.
     #[new]
     fn new(secrets: Vec<u8>) -> Self {
-        Encoder { secrets }
+        let deserialized = serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
+        Encoder { secrets: deserialized }
     }
 
     /// Encode a frame with the given channel and timestamp.
     fn encode(&self, channel: u32, frame: Vec<u8>, timestamp: u64) -> Vec<u8> {
         // TODO: Placeholder encoding logic, modify as needed
         let mut encoded = Vec::new();
+        if channel > MAX_STANDARD_CHANNEL {
+            panic!("Invalid channel ID");
+        }
         // TODO: Use secrets by doing self.secrets
         encoded.extend_from_slice(&channel.to_le_bytes());
         encoded.extend_from_slice(&timestamp.to_le_bytes());

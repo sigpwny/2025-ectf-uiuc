@@ -1,4 +1,4 @@
-use common::secrets::Secrets;
+use common::DeploymentSecrets;
 use rand::Rng;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -32,7 +32,7 @@ fn main() -> std::io::Result<()> {
     let mut secrets_file = File::open("../max78000/global.secrets")?;
     let mut secrets_data = Vec::new();
     secrets_file.read_to_end(&mut secrets_data)?;
-    let secrets: Secrets = serde_json::from_slice(&secrets_data).unwrap();
+    let secrets: DeploymentSecrets = serde_json::from_slice(&secrets_data).unwrap();
 
     println!("Secrets: {:?}", secrets);
 
