@@ -1,4 +1,11 @@
 {
-  "rust-analyzer.cargo.target": "thumbv7em-none-eabihf",
-  "rust-analyzer.checkOnSave.allTargets": false
+  "rust-analyzer.cargo.extraEnv": {
+    "DECODER_ID": "0",
+  },
+  "rust-analyzer.linkedProjects": [
+    "${workspaceFolder}/decoder/common/Cargo.toml",
+    "${workspaceFolder}/decoder/firmware-builder/Cargo.toml",
+    "${workspaceFolder}/decoder/max78000/Cargo.toml",
+    "${workspaceFolder}/design/ectf25_design/Cargo.toml",
+  ],
 }
