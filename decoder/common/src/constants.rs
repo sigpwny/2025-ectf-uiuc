@@ -1,6 +1,8 @@
 // Number-related constants
 pub const MAX_STANDARD_CHANNEL: u32 = 8;
 
+pub const LEN_RNG_SEED: usize = 64;
+
 // Encryption-related constants
 pub const AEAD_ENCRYPTION_OVERHEAD: usize = 16;
 pub const LEN_ASCON_KEY: usize = 16;
