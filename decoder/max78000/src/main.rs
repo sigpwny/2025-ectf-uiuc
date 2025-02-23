@@ -1,23 +1,25 @@
 #![no_std]
 #![no_main]
 
+pub mod host_driver;
+pub mod rng;
+pub mod tmr;
+
 pub extern crate max7800x_hal as hal;
 pub use hal::entry;
 pub use hal::pac;
 
-// pick a panicking behavior
-// use panic_halt as _; // you can put a breakpoint on `rust_begin_unwind` to catch panics
-// use panic_abort as _; // requires nightly
-// use panic_itm as _; // logs messages over ITM; requires ITM support
-use cortex_m_semihosting::heprintln;
-use panic_semihosting as _; // logs messages to the host stderr; requires a debugger // uncomment to use this for printing through semihosting
+// TODO: Custom panic handler
+use panic_halt as _;
 
-pub mod host_driver;
+use common::constants::LEN_RNG_SEED;
 use host_driver::{HostDriver, Message, MessageType};
+use rng::new_custom_rng;
+use tmr::Tmr2;
+use rand::RngCore;
 
 #[entry]
 fn main() -> ! {
-    heprintln!("Hello from semihosting!");
     let p = pac::Peripherals::take().expect("Failed to take peripherals");
     let core = pac::CorePeripherals::take().expect("Failed to take core peripherals");
 
@@ -44,38 +46,27 @@ fn main() -> ! {
         .parity(hal::uart::ParityBit::None)
         .build();
 
-    // Initialize the GPIO2 peripheral
-    let pins = hal::gpio::Gpio2::new(p.gpio2, &mut gcr.reg).split();
-    // Enable output mode for the RGB LED pins
-    let mut led_r = pins.p2_0.into_input_output();
-    let mut led_g = pins.p2_1.into_input_output();
-    let mut led_b = pins.p2_2.into_input_output();
-    // Use VDDIOH as the power source for the RGB LED pins (3.0V)
-    // Note: This HAL API may change in the future
-    led_r.set_power_vddioh();
-    led_g.set_power_vddioh();
-    led_b.set_power_vddioh();
+    // Initialize TRNG peripheral
+    let trng = hal::trng::Trng::new(p.trng, &mut gcr.reg);
+
+    // Initialize TMR2 peripheral
+    let tmr2 = Tmr2::new(p.tmr2, &mut gcr.reg);
+    tmr2.config();
+
+    // Initialize the custom RNG
+    // TODO: Seed the RNG with a unique value
+    let rng_seed = [0u8; LEN_RNG_SEED];
+    let mut random = new_custom_rng(&rng_seed, &trng, &tmr2);
+    // let mut random2 = new_custom_rng(&tmr2, &trng, [1u8; 64]);
 
     // Iniitialize the host transport driver
     let mut host = HostDriver::new(host_uart);
 
-    // LED blink loop
-    for _ in 0..3 {
-        // loop {
-        // host_driver.write_message(Message::debug(b"Hello from the host driver!".as_slice()));
-        led_r.set_high();
-        delay.delay_ms(500);
-        led_g.set_high();
-        delay.delay_ms(500);
-        led_b.set_high();
-        delay.delay_ms(500);
-        led_r.set_low();
-        delay.delay_ms(500);
-        led_g.set_low();
-        delay.delay_ms(500);
-        led_b.set_low();
-        delay.delay_ms(500);
-    }
+    // TODO: Remove debug loop
+    // for _ in 0..3 {
+    //     host_driver.write_message(Message::debug(b"Hello from the host driver!".as_slice()));
+    //     delay.delay_ms(500);
+    // }
 
     loop {
         let message = host.read_message();
@@ -95,9 +86,7 @@ fn main() -> ! {
                 decode_message.data[..decoded_frame.len()].copy_from_slice(decoded_frame);
                 host.write_message(decode_message);
             }
-            _ => {
-                host.write_message(Message::debug(b"Bad opcode received".as_slice()));
-            }
+            _ => {}
         }
     }
 }
