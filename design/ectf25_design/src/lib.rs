@@ -9,7 +9,7 @@ use common::constants::{
     LEN_BASE_CHANNEL_SECRET,
     LEN_BASE_SUBSCRIPTION_SECRET,
     MAX_STANDARD_CHANNEL,
-}
+};
 use pyo3::prelude::*;
 use rand::Rng;
 
