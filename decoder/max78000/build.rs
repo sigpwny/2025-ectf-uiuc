@@ -39,7 +39,7 @@ fn main() {
             );
             "memory.dev.x"
         }
-        _ => "memory.prod.x"
+        _ => "memory.prod.x",
     };
 
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
