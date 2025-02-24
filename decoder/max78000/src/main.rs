@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+pub mod crypto;
 pub mod host_driver;
 pub mod rng;
 pub mod tmr;
