@@ -6,6 +6,7 @@ pub const LEN_RNG_SEED: usize = 64;
 // Encryption-related constants
 pub const AEAD_ENCRYPTION_OVERHEAD: usize = 16;
 pub const LEN_ASCON_KEY: usize = 16;
+pub const LEN_ASCON_NONCE: usize = 16;
 pub const LEN_BASE_CHANNEL_SECRET: usize = 32;
 pub const LEN_BASE_SUBSCRIPTION_SECRET: usize = 32;
 pub const LEN_CHANNEL_SECRET: usize = 32;
