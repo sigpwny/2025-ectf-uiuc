@@ -1,4 +1,4 @@
-use common::{SubscriptionInfo, SubscriptionInfoList, BytesSerializable};
+use common::{SubscriptionInfo, SubscriptionInfoList, BytesSerializable, StoredSubscription};
 use max7800x_hal::flc::{Flc, FlashError, FLASH_BASE, FLASH_PAGE_SIZE}
 
 pub const FLASH_ADDR_SUBSCRIPTION_BASE: u32 = FLASH_BASE + (27 * FLASH_PAGE_SIZE);
