@@ -36,7 +36,7 @@ fn gen_subscription(
     end: u64,
     channel: u32,
 ) -> Vec<u8> {
-    let deployment_secrets = serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
+    let deployment_secrets: DeploymentSecrets = serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
     // TODO: Placeholder subscription generation logic, modify as needed
     let mut subscription = Vec::new();
     subscription.extend_from_slice(&device_id.to_le_bytes());
@@ -57,7 +57,7 @@ impl Encoder {
     /// Initialize the encoder with the given secrets.
     #[new]
     fn new(secrets: Vec<u8>) -> Self {
-        let deserialized = serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
+        let deserialized: DeploymentSecrets = serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
         Encoder { secrets: deserialized }
     }
 
