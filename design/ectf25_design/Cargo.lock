@@ -37,6 +37,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
+name = "bincode"
+version = "2.0.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f11ea1a0346b94ef188834a65c068a03aec181c94896d481d7a0a40d85b0ce95"
+dependencies = [
+ "bincode_derive",
+ "serde",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e30759b3b99a1b802a7a3aa21c85c3ded5c28e1c83170d82d70f08bbf7f3e4c"
+dependencies = [
+ "virtue",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -67,6 +86,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "common"
 version = "0.0.0"
 dependencies = [
+ "bincode",
  "serde",
  "tiny-keccak",
 ]
@@ -437,6 +457,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "virtue"
+version = "0.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dcc60c0624df774c82a0ef104151231d37da4962957d691c011c852b2473314"
 
 [[package]]
 name = "wasi"
