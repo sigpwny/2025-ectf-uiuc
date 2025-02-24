@@ -15,6 +15,7 @@ pub const FLASH_ADDR_SUBSCRIPTION_BASE: u32 = FLASH_BASE + (27 * FLASH_PAGE_SIZE
 // index 27
 // channel 0 subscription (valid for 0x0 - max timestamp (u64))
 // each subscription: 16 bytes (0x53) + 8 bytes (start) + 8 bytes (end) + 32 bytes (channel secret)
+// each channel is stored on its own page (channel 1 at index 28, channel 2 at index 29, etc)
 
 // 0x1008_0000 (64 pages total)
 
@@ -22,39 +23,39 @@ pub const FLASH_ADDR_SUBSCRIPTION_BASE: u32 = FLASH_BASE + (27 * FLASH_PAGE_SIZE
 
 
 // This is only called after we have verified/authenticated/decrypted the update subscription message
-pub fn update_subscription(flc: &mut Flc, subscription_list: StoredSubscriptionList) -> Result<(), FlashError> {
+pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscription) -> Result<(), FlashError> {
+    let subscription_loc: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + subscription.info.channel_id * FLASH_PAGE_SIZE;
+
     unsafe {
-        flc.erase_page(FLASH_ADDR_SUBSCRIPTION_BASE)?;
+        flc.erase_page(subscription_loc)?;
     }
     
-    for subscription_entry in &subscription_list {
-        let mut serialized_subscripton = [0xFFu8; 64];
+    let mut serialized_subscripton = [0xFFu8; 64];
 
-        // if subscription_entry is not None
-        if let Some(subscription) = subscription_entry {
+    // if subscription_entry is not None
+    if let Some(subscription) = subscription {
 
-            // Serialize a stored subscription
-            let serialized_stored_subscription: [u8; 52] = subscription.to_bytes();
+        // Serialize a stored subscription
+        let serialized_stored_subscription: [u8; 52] = subscription.to_bytes();
 
-            serialized_subscription[0..16].copy_from_slice(&[0x53u8; 16]); // padding (16 bytes of 0x53)
-            serialized_subscription[16..].copy_from_slice(&serialized_stored_subscription[4..]); // stored subscription without channel_id
-        } 
-        
-        // u8 -> u32 then write four u32's
-        for i in 0..4 {
-            let start = i * 16;
-            let end = start + 16;
-            let chunk = &serialized_subscription[start..end];
+        serialized_subscription[0..16].copy_from_slice(&[0x53u8; 16]); // padding (16 bytes of 0x53)
+        serialized_subscription[16..].copy_from_slice(&serialized_stored_subscription[4..]); // stored subscription without channel_id
+    } 
+    
+    // u8 -> u32 then write four u32's
+    for i in 0..4 {
+        let start = i * 16;
+        let end = start + 16;
+        let chunk = &serialized_subscription[start..end];
 
-            let chunk_u32: [u32; 4] = [
-                u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]),
-                u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]),
-                u32::from_le_bytes([chunk[8], chunk[9], chunk[10], chunk[11]]),
-                u32::from_le_bytes([chunk[12], chunk[13], chunk[14], chunk[15]]),
-            ];
+        let chunk_u32: [u32; 4] = [
+            u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]),
+            u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]),
+            u32::from_le_bytes([chunk[8], chunk[9], chunk[10], chunk[11]]),
+            u32::from_le_bytes([chunk[12], chunk[13], chunk[14], chunk[15]]),
+        ];
 
-            flc.write_128(FLASH_ADDR_SUBSCRIPTION_BASE + (subscription_entry.info.channel_id * 64) + (i * 16), &chunk_u32)?;
-        }
+        flc.write_128(subscription_loc, &chunk_u32)?;
     }
 
     Ok(())
@@ -67,7 +68,7 @@ pub fn get_channel_subscription(flc: &mut Flc, channel_id: u32) -> Result<Stored
         return Ok(());
     }
     
-    let subscription_loc: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + channel_id * 64;
+    let subscription_loc: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + channel_id * FLASH_PAGE_SIZE;
     
     // make sure to validate first 16 bytes are 0x53 
     let header: [u32; 4] = flc.read_128(subscription_loc).unwrap();
