@@ -61,6 +61,7 @@ impl Decode for MessageToDecoder {
                 Decode::decode(decoder)?,
             )),
             (b'D', LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::Decode(Decode::decode(decoder)?)),
+            (b'L'|b'S'|b'D', _) => Err(DecodeError::Other("Incorrect message length")),
             _ => Err(DecodeError::Other("Unsupported message")),
         }
     }
