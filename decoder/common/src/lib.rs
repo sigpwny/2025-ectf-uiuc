@@ -41,55 +41,57 @@ pub struct DeploymentSecrets {
 
 /// The subscription update payload received from the host.
 #[derive(Debug)]
-pub struct EncryptedSubscription([u8; LEN_ENCRYPTED_SUBSCRIPTION]);
+pub struct EncryptedSubscription(pub [u8; LEN_ENCRYPTED_SUBSCRIPTION]);
 
 /// Public information about a subscription. Embedded within a StoredSubscription and primarily
 /// used for serialization when communicating with the host.
 #[derive(Debug)]
 pub struct SubscriptionInfo {
-    channel_id: u32,
-    start: u64,
-    end: u64,
+    pub channel_id: u32,
+    pub start: u64,
+    pub end: u64,
 }
 
 /// All information about a subscription.
 #[derive(Debug)]
 pub struct StoredSubscription {
-    info: SubscriptionInfo,
-    channel_secret: ChannelSecret,
+    pub info: SubscriptionInfo,
+    pub channel_secret: ChannelSecret,
 }
 
 /// A list of 8 optional SubscriptionInfo objects for each channel.
+// TODO: This does not make sense
 #[derive(Debug)]
-pub struct SubscriptionInfoList([Option<SubscriptionInfo>; LEN_STANDARD_CHANNELS]);
+pub struct SubscriptionInfoList(pub [Option<SubscriptionInfo>; LEN_STANDARD_CHANNELS]);
 
 /// A list of 8 optional StoredSubscription objects for each channel.
+// TODO: This does not make sense
 #[derive(Debug)]
-pub struct StoredSubscriptionList([Option<StoredSubscription>; LEN_STANDARD_CHANNELS]);
+pub struct StoredSubscriptionList(pub [Option<StoredSubscription>; LEN_STANDARD_CHANNELS]);
 
 // 80 bytes of frame data, 4 bytes of channel ID, 8 bytes of timestamp, 1 byte of frame length
 // Plus 16 bytes from encryption
 /// The frame payload received from the host.
 #[derive(Debug)]
-pub struct EncryptedFrame([u8; LEN_ENCRYPTED_FRAME]);
+pub struct EncryptedFrame(pub [u8; LEN_ENCRYPTED_FRAME]);
 
 /// Encrypted frame data, stored in a DecryptedFrame object.
 #[derive(Debug)]
-pub struct EncryptedPicture([u8; LEN_ENCRYPTED_PICTURE]);
+pub struct EncryptedPicture(pub [u8; LEN_ENCRYPTED_PICTURE]);
 
 /// An object representing a frame halfway through the decryption process. It contains the
 /// encrypted frame data but decrypted versions of the channel ID, timestamp, and frame length.
 #[derive(Debug)]
 pub struct DecryptedFrame {
-    encrypted_picture: EncryptedPicture,
-    channel_id: u32,
-    timestamp: u64,
-    frame_length: u8,
+    pub encrypted_picture: EncryptedPicture,
+    pub channel_id: u32,
+    pub timestamp: u64,
+    pub frame_length: u8,
 }
 
 /// The final 64-byte decrypted frame
 #[derive(Debug)]
-pub struct Picture([u8; LEN_PICTURE]);
+pub struct Picture(pub [u8; LEN_PICTURE]);
 
 /// A trait that allows an object to be serialized to and deserialized from a fixed-size byte
 /// array.
@@ -106,10 +108,10 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO> for SubscriptionInfo {
     fn to_bytes(&self) -> [u8; LEN_SUBSCRIPTION_INFO] {
         let mut bytes = [0; LEN_SUBSCRIPTION_INFO];
 
-        bytes[..LEN_CHANNEL_ID].copy_from_slice(&self.channel_id.to_be_bytes());
+        bytes[..LEN_CHANNEL_ID].copy_from_slice(&self.channel_id.to_le_bytes());
         bytes[LEN_CHANNEL_ID..LEN_CHANNEL_ID + LEN_TIMESTAMP]
-            .copy_from_slice(&self.start.to_be_bytes());
-        bytes[LEN_CHANNEL_ID + LEN_TIMESTAMP..].copy_from_slice(&self.end.to_be_bytes());
+            .copy_from_slice(&self.start.to_le_bytes());
+        bytes[LEN_CHANNEL_ID + LEN_TIMESTAMP..].copy_from_slice(&self.end.to_le_bytes());
 
         bytes
     }
@@ -165,7 +167,7 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO_LIST_BYTES> for SubscriptionInfoLis
             }
         }
 
-        bytes[..4].copy_from_slice(&num_valid.to_be_bytes());
+        bytes[..4].copy_from_slice(&num_valid.to_le_bytes());
 
         // The rest of the bytes are the serialized subscriptions
         let mut offset = 4;
