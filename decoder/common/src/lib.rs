@@ -7,7 +7,8 @@ pub mod crypto;
 use bincode::{
     config::{Configuration, Fixint, LittleEndian},
     de::Decoder,
-    enc::Encoder,
+    enc::{write::Writer, Encoder},
+    encode_into_writer,
     error::{DecodeError, EncodeError},
     Decode, Encode,
 };
@@ -20,6 +21,85 @@ pub fn config() -> Configuration<LittleEndian, Fixint> {
         .with_fixed_int_encoding()
 }
 
+struct DryWriter {
+    bytes_written: usize,
+}
+
+impl DryWriter {
+    fn new() -> Self {
+        Self { bytes_written: 0 }
+    }
+}
+
+impl Writer for DryWriter {
+    fn write(&mut self, _bytes: &[u8]) -> Result<(), EncodeError> {
+        self.bytes_written += _bytes.len();
+        Ok(())
+    }
+}
+
+/// Messages that the host sends to the decoder.
+#[derive(Debug)]
+pub enum MessageToDecoder {
+    List,
+    UpdateSubscription(EncryptedSubscription),
+    Decode(EncryptedFrame),
+}
+
+impl Decode for MessageToDecoder {
+    fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let magic: u8 = Decode::decode(decoder)?;
+        if magic != b'%' {
+            return Err(DecodeError::Other("Invalid magic byte"));
+        }
+
+        let opcode: u8 = Decode::decode(decoder)?;
+        let len: u16 = Decode::decode(decoder)?;
+        match (opcode, len as usize) {
+            (b'L', 0) => Ok(MessageToDecoder::List),
+            (b'S', LEN_ENCRYPTED_SUBSCRIPTION) => Ok(MessageToDecoder::UpdateSubscription(
+                Decode::decode(decoder)?,
+            )),
+            (b'D', LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::Decode(Decode::decode(decoder)?)),
+            _ => Err(DecodeError::Other("Unsupported message")),
+        }
+    }
+}
+
+/// Messages that the decoder can send to the host.
+#[derive(Debug)]
+pub enum MessageFromDecoder {
+    List(SubscriptionInfoList),
+    UpdateSubscription,
+    Decode(SizedPicture),
+    Error,
+    Debug,
+}
+
+impl Encode for MessageFromDecoder {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Encode::encode(&b'%', encoder)?;
+        let (opcode, len) = match self {
+            Self::List(subscriptions) => {
+                let mut dry_writer = DryWriter::new();
+                encode_into_writer(subscriptions, &mut dry_writer, config())?;
+                (b'L', dry_writer.bytes_written as u16)
+            }
+            Self::UpdateSubscription => (b'S', 0),
+            Self::Decode(picture) => (b'D', picture.picture_length as u16),
+            Self::Error => (b'E', 0),
+            Self::Debug => (b'G', 0),
+        };
+        Encode::encode(&opcode, encoder)?;
+        Encode::encode(&len, encoder)?;
+        match self {
+            Self::List(subscriptions) => Encode::encode(subscriptions, encoder),
+            Self::Decode(picture) => Encode::encode(picture, encoder),
+            _ => Ok(()),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct BaseChannelSecret(pub [u8; LEN_BASE_CHANNEL_SECRET]);
@@ -29,20 +109,20 @@ pub struct BaseChannelSecret(pub [u8; LEN_BASE_CHANNEL_SECRET]);
 pub struct BaseSubscriptionSecret(pub [u8; LEN_BASE_SUBSCRIPTION_SECRET]);
 
 /// The Channel Secret which is given with a subscription.
-#[derive(Debug, Deserialize, Serialize, Encode, Decode)]
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
 #[serde(transparent)]
 pub struct ChannelSecret(pub [u8; LEN_CHANNEL_SECRET]);
 
-#[derive(Debug, Deserialize, Serialize, Encode, Decode)]
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
 #[serde(transparent)]
 pub struct FrameKey(pub [u8; LEN_ASCON_KEY]);
 
 /// The Picture Key which is derived with a particular frame to encrypt the picture.
-#[derive(Debug, Deserialize, Serialize, Encode, Decode)]
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
 pub struct PictureKey(pub [u8; LEN_ASCON_KEY]);
 
 /// The Subscription Key which is derived for a particular device and used to encrypt subscription updates.
-#[derive(Debug, Deserialize, Serialize, Encode, Decode)]
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
 #[serde(transparent)]
 pub struct SubscriptionKey(pub [u8; LEN_ASCON_KEY]);
 
@@ -74,7 +154,6 @@ pub struct StoredSubscription {
 }
 
 /// A list of 8 optional SubscriptionInfo objects for each channel.
-// TODO: This does not make sense
 #[derive(Debug)]
 pub struct SubscriptionInfoList {
     pub subscribed_channels: u32,
@@ -109,7 +188,6 @@ impl Decode for SubscriptionInfoList {
 }
 
 /// A list of 8 optional StoredSubscription objects for each channel.
-// TODO: This does not make sense
 #[derive(Debug, Decode, Encode)]
 pub struct StoredSubscriptionList {
     pub subscribed_channels: u32,
@@ -130,19 +208,35 @@ pub struct EncryptedPicture(pub [u8; LEN_ENCRYPTED_PICTURE]);
 /// encrypted frame data but decrypted versions of the channel ID, timestamp, and frame length.
 #[derive(Debug, Decode, Encode)]
 pub struct DecryptedFrame {
-    pub encrypted_picture: EncryptedPicture,
     pub channel_id: u32,
     pub timestamp: u64,
-    pub frame_length: u8,
+    pub picture_length: u8,
+    pub encrypted_picture: EncryptedPicture,
 }
 
-/// The final 64-byte decrypted frame
+/// The final 64-byte decrypted picture.
 #[derive(Debug, Decode, Encode)]
 pub struct Picture(pub [u8; LEN_PICTURE]);
 
+/// The decrypted picture and its length.
+#[derive(Debug)]
+pub struct SizedPicture {
+    picture_length: u8,
+    picture: Picture,
+}
+
+impl Encode for SizedPicture {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        for i in 0..self.picture_length {
+            Encode::encode(&self.picture.0[i as usize], encoder)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use bincode::encode_into_slice;
+    use bincode::{decode_from_slice, encode_into_slice};
 
     use super::*;
 
@@ -151,16 +245,31 @@ mod tests {
         let sub = SubscriptionInfo {
             channel_id: 0x1,
             start: 0x32,
-            end: 0x1F4
+            end: 0x1F4,
         };
         let sub_bytes: [u8; 20] = [
-            0x1, 0x0, 0x0, 0x0,
-            0x32, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-            0xF4, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
+            0x1, 0x0, 0x0, 0x0, 0x32, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xF4, 0x1, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0,
         ];
         let mut actual_bytes = [0xff; 20];
-        assert_eq!(encode_into_slice(sub, &mut actual_bytes, config()).unwrap(), 20);
+        assert_eq!(
+            encode_into_slice(sub, &mut actual_bytes, config()).unwrap(),
+            20
+        );
         assert_eq!(actual_bytes, sub_bytes);
+    }
+
+    #[test]
+    fn test_update_subscription_to_encoder() {
+        let mut sub_bytes = [0u8; 4 + LEN_ENCRYPTED_SUBSCRIPTION];
+        sub_bytes[..4].copy_from_slice(&[b'%', b'S', LEN_ENCRYPTED_SUBSCRIPTION as u8, 0]);
+        sub_bytes[4..].copy_from_slice(&[0xde; LEN_ENCRYPTED_SUBSCRIPTION]);
+        assert!(matches!(
+            decode_from_slice::<MessageToDecoder, _>(&sub_bytes, config())
+                .unwrap()
+                .0,
+            MessageToDecoder::UpdateSubscription(EncryptedSubscription([0xde, 0xde, ..]))
+        ));
     }
 
     // #[test]
