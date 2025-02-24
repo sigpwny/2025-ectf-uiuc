@@ -37,6 +37,7 @@ name = "common"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "tiny-keccak",
 ]
 
 [[package]]

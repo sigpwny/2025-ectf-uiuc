@@ -1,6 +1,8 @@
 #![cfg_attr(not(test), no_std)]
 
 pub mod constants;
+pub mod crypto;
+
 use constants::*;
 use serde::{Deserialize, Serialize};
 
@@ -105,7 +107,8 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO> for SubscriptionInfo {
         let mut bytes = [0; LEN_SUBSCRIPTION_INFO];
 
         bytes[..LEN_CHANNEL_ID].copy_from_slice(&self.channel_id.to_be_bytes());
-        bytes[LEN_CHANNEL_ID..LEN_CHANNEL_ID + LEN_TIMESTAMP].copy_from_slice(&self.start.to_be_bytes());
+        bytes[LEN_CHANNEL_ID..LEN_CHANNEL_ID + LEN_TIMESTAMP]
+            .copy_from_slice(&self.start.to_be_bytes());
         bytes[LEN_CHANNEL_ID + LEN_TIMESTAMP..].copy_from_slice(&self.end.to_be_bytes());
 
         bytes
@@ -113,13 +116,17 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO> for SubscriptionInfo {
 
     fn from_bytes(bytes: [u8; LEN_SUBSCRIPTION_INFO]) -> SubscriptionInfo {
         let channel_id = u32::from_be_bytes(bytes[..LEN_CHANNEL_ID].try_into().unwrap());
-        let start = u64::from_be_bytes(bytes[LEN_CHANNEL_ID..LEN_CHANNEL_ID + LEN_TIMESTAMP].try_into().unwrap());
+        let start = u64::from_be_bytes(
+            bytes[LEN_CHANNEL_ID..LEN_CHANNEL_ID + LEN_TIMESTAMP]
+                .try_into()
+                .unwrap(),
+        );
         let end = u64::from_be_bytes(bytes[LEN_CHANNEL_ID + LEN_TIMESTAMP..].try_into().unwrap());
 
         SubscriptionInfo {
             channel_id,
             start,
-            end
+            end,
         }
     }
 }
@@ -173,12 +180,16 @@ impl BytesSerializable<LEN_SUBSCRIPTION_INFO_LIST_BYTES> for SubscriptionInfoLis
     }
 
     fn from_bytes(bytes: [u8; LEN_SUBSCRIPTION_INFO_LIST_BYTES]) -> Self {
-        let mut subscription_info_list = [const{ None }; LEN_STANDARD_CHANNELS];
+        let mut subscription_info_list = [const { None }; LEN_STANDARD_CHANNELS];
 
         let num_valid = usize::from_be_bytes(bytes[..4].try_into().unwrap());
         let mut offset = 4;
         for i in 0..num_valid {
-            subscription_info_list[i] = Some(SubscriptionInfo::from_bytes(bytes[offset..offset + LEN_SUBSCRIPTION_INFO].try_into().unwrap()));
+            subscription_info_list[i] = Some(SubscriptionInfo::from_bytes(
+                bytes[offset..offset + LEN_SUBSCRIPTION_INFO]
+                    .try_into()
+                    .unwrap(),
+            ));
             offset += LEN_SUBSCRIPTION_INFO;
         }
 
@@ -212,13 +223,17 @@ impl BytesSerializable<LEN_STORED_SUBSCRIPTION_LIST_BYTES> for StoredSubscriptio
     }
 
     fn from_bytes(bytes: [u8; LEN_STORED_SUBSCRIPTION_LIST_BYTES]) -> Self {
-        let mut stored_subscription_list = [const{ None }; LEN_STANDARD_CHANNELS];
+        let mut stored_subscription_list = [const { None }; LEN_STANDARD_CHANNELS];
 
         let bitmask = bytes[0];
         let mut offset = 1;
         for i in 0..LEN_STANDARD_CHANNELS {
             if bitmask & (1 << i) != 0 {
-                stored_subscription_list[i] = Some(StoredSubscription::from_bytes(bytes[offset..offset + LEN_STORED_SUBSCRIPTION].try_into().unwrap()));
+                stored_subscription_list[i] = Some(StoredSubscription::from_bytes(
+                    bytes[offset..offset + LEN_STORED_SUBSCRIPTION]
+                        .try_into()
+                        .unwrap(),
+                ));
             }
             offset += LEN_STORED_SUBSCRIPTION;
         }
