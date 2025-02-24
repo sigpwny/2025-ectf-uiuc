@@ -32,15 +32,11 @@ pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscription) -> R
     
     let mut serialized_subscripton = [0xFFu8; 64];
 
-    // if subscription_entry is not None
-    if let Some(subscription) = subscription {
+    // Serialize a stored subscription
+    let serialized_stored_subscription: [u8; 52] = subscription.to_bytes();
 
-        // Serialize a stored subscription
-        let serialized_stored_subscription: [u8; 52] = subscription.to_bytes();
-
-        serialized_subscription[0..16].copy_from_slice(&[0x53u8; 16]); // padding (16 bytes of 0x53)
-        serialized_subscription[16..].copy_from_slice(&serialized_stored_subscription[4..]); // stored subscription without channel_id
-    } 
+    serialized_subscription[0..16].copy_from_slice(&[0x53u8; 16]); // padding (16 bytes of 0x53)
+    serialized_subscription[16..].copy_from_slice(&serialized_stored_subscription[4..]); // stored subscription without channel_id
     
     // u8 -> u32 then write four u32's
     for i in 0..4 {
@@ -55,7 +51,7 @@ pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscription) -> R
             u32::from_le_bytes([chunk[12], chunk[13], chunk[14], chunk[15]]),
         ];
 
-        flc.write_128(subscription_loc, &chunk_u32)?;
+        flc.write_128(subscription_loc + (i * 16), &chunk_u32)?;
     }
 
     Ok(())
