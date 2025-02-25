@@ -178,11 +178,13 @@ where
                 decode_from_reader(&mut *self, config()).map_err(|e| UartError::Decode(e))?,
             )),
             (MessageType::Decode, LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::Decode(decode_from_reader(&mut *self, config()).map_err(|e| UartError::Decode(e))?)),
-            (MessageType::List|MessageType::Subscribe|MessageType::Decode, _) => Err(UartError::Decode(DecodeError::Other("Incorrect message length"))),
+            (MessageType::List|MessageType::Subscribe|MessageType::Decode, _) => Err(UartError::InvalidLength),
             _ => Err(UartError::InvalidOpcode),
         };
+
         self.write_ack();
-        return result;
+
+        result
 
         // let mut message = Message::new();
 
