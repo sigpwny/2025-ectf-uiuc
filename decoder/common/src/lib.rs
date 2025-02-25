@@ -1,5 +1,5 @@
-#![cfg_attr(not(test), no_std)]
-// #![no_std]
+// #![cfg_attr(not(test), no_std)]
+#![no_std]
 
 pub mod constants;
 pub mod crypto;
@@ -7,77 +7,33 @@ pub mod crypto;
 use bincode::{
     config::{Configuration, Fixint, LittleEndian},
     de::Decoder,
-    enc::{write::Writer, Encoder},
-    encode_into_writer,
+    enc::Encoder,
     error::{DecodeError, EncodeError},
     Decode, Encode,
 };
 use constants::*;
 use serde::{Deserialize, Serialize};
 
-pub fn config() -> Configuration<LittleEndian, Fixint> {
-    bincode::config::standard()
-        .with_little_endian()
-        .with_fixed_int_encoding()
-}
-
-struct DryWriter {
-    bytes_written: usize,
-}
-
-impl DryWriter {
-    fn new() -> Self {
-        Self { bytes_written: 0 }
-    }
-}
-
-impl Writer for DryWriter {
-    fn write(&mut self, _bytes: &[u8]) -> Result<(), EncodeError> {
-        self.bytes_written += _bytes.len();
-        Ok(())
-    }
-}
+pub const BINCODE_CONFIG: Configuration<LittleEndian, Fixint> = bincode::config::standard()
+    .with_little_endian()
+    .with_fixed_int_encoding();
 
 /// Messages that the host sends to the decoder.
 #[derive(Debug)]
 pub enum MessageToDecoder {
-    List,
+    ListSubscriptions,
     UpdateSubscription(EncryptedSubscription),
-    Decode(EncryptedFrame),
+    DecodeFrame(EncryptedFrame),
 }
 
 /// Messages that the decoder can send to the host.
 #[derive(Debug)]
 pub enum MessageFromDecoder {
-    List(SubscriptionInfoList),
+    ListSubscriptions(SubscriptionInfoList),
     UpdateSubscription,
-    Decode(SizedPicture),
+    DecodeFrame(SizedPicture),
     Error,
     Debug,
-}
-
-impl Encode for MessageFromDecoder {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        Encode::encode(&b'%', encoder)?;
-        let (opcode, len) = match self {
-            Self::List(subscriptions) => {
-                let mut dry_writer = DryWriter::new();
-                encode_into_writer(subscriptions, &mut dry_writer, config())?;
-                (b'L', dry_writer.bytes_written as u16)
-            }
-            Self::UpdateSubscription => (b'S', 0),
-            Self::Decode(picture) => (b'D', picture.picture_length as u16),
-            Self::Error => (b'E', 0),
-            Self::Debug => (b'G', 0),
-        };
-        Encode::encode(&opcode, encoder)?;
-        Encode::encode(&len, encoder)?;
-        match self {
-            Self::List(subscriptions) => Encode::encode(subscriptions, encoder),
-            Self::Decode(picture) => Encode::encode(picture, encoder),
-            _ => Ok(()),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -196,7 +152,7 @@ pub struct DecryptedFrame {
 
 /// The final 64-byte decrypted picture.
 #[derive(Debug, Decode, Encode)]
-pub struct Picture(pub [u8; LEN_PICTURE]);
+pub struct Picture(pub [u8; MAX_LEN_PICTURE]);
 
 /// The decrypted picture and its length.
 #[derive(Debug)]
@@ -233,7 +189,7 @@ mod tests {
         ];
         let mut actual_bytes = [0xff; 20];
         assert_eq!(
-            encode_into_slice(sub, &mut actual_bytes, config()).unwrap(),
+            encode_into_slice(sub, &mut actual_bytes, BINCODE_CONFIG).unwrap(),
             20
         );
         assert_eq!(actual_bytes, sub_bytes);

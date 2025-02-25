@@ -75,13 +75,13 @@ fn main() -> ! {
         let message = host.read_message();
         // let res: Result<MessageToDecoder, DecodeError> = bincode::decode_from_reader(&mut host, config);
         match message {
-            Ok(MessageToDecoder::List) => {
+            Ok(MessageToDecoder::ListSubscriptions) => {
                 unimplemented!("List message not implemented");
             },
             Ok(MessageToDecoder::UpdateSubscription(enc_subscription)) => {
                 unimplemented!("Subscribe message not implemented");
             },
-            Ok(MessageToDecoder::Decode(enc_frame)) => {
+            Ok(MessageToDecoder::DecodeFrame(enc_frame)) => {
                 // handle_decode(host, enc_frame);
                 // unimplemented!("Decode message not implemented");
                 let decoded_frame = b"Hello from the decoder!".as_slice();

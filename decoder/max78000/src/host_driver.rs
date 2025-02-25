@@ -4,7 +4,7 @@ use bincode::{
     error::DecodeError,
     decode_from_reader,
 };
-use common::{MessageToDecoder, MessageFromDecoder, config};
+use common::{MessageToDecoder, MessageFromDecoder, BINCODE_CONFIG};
 use common::constants::*;
 use core::convert::Infallible;
 use embedded_hal_nb::nb::block;
@@ -173,11 +173,11 @@ where
         self.state = UartState::NumBytesRead(0);
 
         let result = match (header.opcode, header.length as usize) {
-            (MessageType::List, 0) => Ok(MessageToDecoder::List),
+            (MessageType::List, 0) => Ok(MessageToDecoder::ListSubscriptions),
             (MessageType::Subscribe, LEN_ENCRYPTED_SUBSCRIPTION) => Ok(MessageToDecoder::UpdateSubscription(
-                decode_from_reader(&mut *self, config()).map_err(|e| UartError::Decode(e))?,
+                decode_from_reader(&mut *self, BINCODE_CONFIG).map_err(|e| UartError::Decode(e))?,
             )),
-            (MessageType::Decode, LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::Decode(decode_from_reader(&mut *self, config()).map_err(|e| UartError::Decode(e))?)),
+            (MessageType::Decode, LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::DecodeFrame(decode_from_reader(&mut *self, BINCODE_CONFIG).map_err(|e| UartError::Decode(e))?)),
             (MessageType::List|MessageType::Subscribe|MessageType::Decode, _) => Err(UartError::InvalidLength),
             _ => Err(UartError::InvalidOpcode),
         };
