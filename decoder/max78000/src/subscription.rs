@@ -5,14 +5,14 @@ pub const FLASH_ADDR_SUBSCRIPTION_BASE: u32 = FLASH_BASE + (27 * FLASH_PAGE_SIZE
 
 // assert_eq!(FLASH_ADDR_SUBSCRIPTION_BASE, 0x10060000);
 
-// 0x1000_0000
+// 0x1000_E000
 // firmware size = 0x38000
-// 0x1003_4000 - 0x1003_5FFF - global secrets
+// 0x1004_2000 - 0x1004_3FFF - global secrets
 //  - frame key (16 bytes)
 //  - subscription key (16 bytes, specific for decoder)
 
-// 0x1003_6000 - 0x1003_7FFF (size: 0x2000, which is 8192 bytes) - subscription storage
-// index 27
+// 0x1004_4000 - 0x1004_5FFF (size: 0x2000, which is 8192 bytes) - subscription storage
+
 // channel 0 subscription (valid for 0x0 - max timestamp (u64))
 // each subscription: 16 bytes (0x53) + 8 bytes (start) + 8 bytes (end) + 32 bytes (channel secret)
 // each channel is stored on its own page (channel 1 at index 28, channel 2 at index 29, etc)

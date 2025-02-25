@@ -14,12 +14,12 @@ dependencies = [
 
 [tasks.clean-docker]
 command = "rm"
-args = ["-f", "max78000/global.secrets", "/out/max78000.bin"]
+args = ["-f", "firmware-builder/global.secrets", "/out/max78000.bin"]
 
 [tasks.pre-docker]
 dependencies = ["clean-docker"]
 command = "cp"
-args = ["/global.secrets", "max78000/global.secrets"]
+args = ["/global.secrets", "firmware-builder/global.secrets"]
 
 [tasks.post-docker]
 command = "cp"
