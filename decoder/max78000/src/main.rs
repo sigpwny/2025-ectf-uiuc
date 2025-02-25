@@ -3,6 +3,7 @@
 
 pub mod crypto;
 pub mod decode;
+pub mod hardening;
 pub mod host_driver;
 pub mod rng;
 pub mod subscription;
@@ -20,7 +21,6 @@ use common::MessageToDecoder;
 use host_driver::{HostDriver, Message, MessageType};
 use rng::new_custom_rng;
 use tmr::Tmr2;
-use rand::RngCore;
 
 #[entry]
 fn main() -> ! {
@@ -37,7 +37,7 @@ fn main() -> ! {
 
     // Initialize a delay timer using the ARM SYST (SysTick) peripheral
     let rate = clks.sys_clk.frequency;
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, rate);
+    let host_delay = cortex_m::delay::Delay::new(core.SYST, rate);
 
     // Initialize and split the GPIO0 peripheral into pins
     let gpio0_pins = hal::gpio::Gpio0::new(p.gpio0, &mut gcr.reg).split();
@@ -57,14 +57,17 @@ fn main() -> ! {
     let tmr2 = Tmr2::new(p.tmr2, &mut gcr.reg);
     tmr2.config();
 
+    // Initialize the FLC peripheral
+    let mut flc = hal::flc::Flc::new(p.flc, clks.sys_clk);
+
     // Initialize the custom RNG
     // TODO: Seed the RNG with a unique value
     let rng_seed = [0u8; LEN_RNG_SEED];
-    let mut random = new_custom_rng(&rng_seed, &trng, &tmr2);
+    let host_rng = new_custom_rng(&rng_seed, &trng, &tmr2);
     // let mut random2 = new_custom_rng(&tmr2, &trng, [1u8; 64]);
 
     // Iniitialize the host transport driver
-    let mut host = HostDriver::new(host_uart);
+    let mut host = HostDriver::new(host_uart, host_rng, host_delay);
 
     // TODO: Remove debug loop
     // for _ in 0..3 {
@@ -77,7 +80,7 @@ fn main() -> ! {
         // let res: Result<MessageToDecoder, DecodeError> = bincode::decode_from_reader(&mut host, config);
         match message {
             Ok(MessageToDecoder::ListSubscriptions) => {
-                unimplemented!("List message not implemented");
+                let sub_list = subscription::get_subscriptions(&mut flc);
             },
             Ok(MessageToDecoder::UpdateSubscription(enc_subscription)) => {
                 unimplemented!("Subscribe message not implemented");

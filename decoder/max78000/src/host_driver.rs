@@ -7,8 +7,12 @@ use bincode::{
 use common::{MessageToDecoder, MessageFromDecoder, BINCODE_CONFIG};
 use common::constants::*;
 use core::convert::Infallible;
+use cortex_m::delay::Delay;
+use crate::hardening::delay_random_us;
+use crate::repeat_5;
 use embedded_hal_nb::nb::block;
 use embedded_hal_nb::serial;
+use rand::RngCore;
 
 pub const MAX_MESSAGE_SIZE: usize = 0x400; // 1024 bytes
 pub const BLOCK_SIZE: usize = 0x100; // 256 bytes
@@ -123,17 +127,21 @@ impl Message {
 
 /// A driver for the host computer and decoder interface as described in the
 /// [eCTF 2025 Detailed Specifications](https://rules.ectf.mitre.org/2025/specs/detailed_specs.html).
-pub struct HostDriver<Serial, SerialError = Infallible>
+pub struct HostDriver<Serial, Rng, SerialError = Infallible>
 where
     Serial: serial::Read<u8, Error = SerialError> + serial::Write<u8, Error = SerialError>,
+    Rng: RngCore,
 {
     uart: Serial,
+    rng: Rng,
+    delay: Delay,
     state: UartState,
 }
 
-impl<Serial, SerialError> Reader for HostDriver<Serial, SerialError>
+impl<Serial, Rng, SerialError> Reader for HostDriver<Serial, Rng, SerialError>
 where
     Serial: serial::Read<u8, Error = SerialError> + serial::Write<u8, Error = SerialError>,
+    Rng: RngCore,
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<(), DecodeError> {
         for b in buf.iter_mut() {
@@ -152,22 +160,31 @@ where
     }
 }
 
-impl<Serial, SerialError> HostDriver<Serial, SerialError>
+impl<Serial, Rng, SerialError> HostDriver<Serial, Rng, SerialError>
 where
     Serial: serial::Read<u8, Error = SerialError> + serial::Write<u8, Error = SerialError>,
+    Rng: RngCore,
 {
     /// Create a new host transport driver with the given serial interface.
-    pub fn new(uart: Serial) -> Self {
-        Self { uart, state: UartState::None }
+    pub fn new(uart: Serial, rng: Rng, delay: Delay) -> Self {
+        Self {
+            uart,
+            rng,
+            delay,
+            state: UartState::None
+        }
     }
 
-    /// Free the serial interface from the host transport driver.
+    /// Free the serial interface and drop the host transport driver.
     pub fn free(self) -> Serial {
         self.uart
     }
 
     /// Read a message from the host computer.
     pub fn read_message(&mut self) -> Result<MessageToDecoder, UartError> {
+        // Random delay
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
+
         let header = self.read_header()?;
 
         self.state = UartState::NumBytesRead(0);
@@ -183,6 +200,9 @@ where
         };
 
         self.write_ack();
+
+        // Random delay
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
 
         result
 
@@ -229,7 +249,9 @@ where
 
     /// Write a message to the host computer.
     pub fn write_message(&mut self, message: Message) {
-        // TODO: Add random delay here
+        // Random delay
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
+
         let _ = self.write_header(&message.header);
         if message.header.should_ack() {
             self.read_ack();
@@ -248,7 +270,9 @@ where
                 self.read_ack();
             }
         }
-        // TODO: Add random delay here
+
+        // Random delay
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
     }
 
     /// Read an ACK message from the host computer. Blocks until an ACK is received.
