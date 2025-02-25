@@ -78,28 +78,10 @@ impl Encoder {
 
 /// Build the Python module.
 #[pymodule]
-fn ectf25_design(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Create the submodule "ectf25_design.gen_secrets"
-    let m_gen_secrets = PyModule::new(m.py(), "ectf25_design.gen_secrets")?;
-    m_gen_secrets.add_function(wrap_pyfunction!(gen_secrets, m)?)?;
-    m.add_submodule(&m_gen_secrets)?;
-
-    // Create the submodule "ectf25_design.gen_subscription"
-    let m_gen_subscription = PyModule::new(m.py(), "ectf25_design.gen_subscription")?;
-    m_gen_subscription.add_function(wrap_pyfunction!(gen_subscription, m)?)?;
-    m.add_submodule(&m_gen_subscription)?;
-
-    // Create the submodule "ectf25_design.encoder"
-    let m_encoder = PyModule::new(m.py(), "ectf25_design.encoder")?;
-    m_encoder.add_class::<Encoder>()?;
-    m.add_submodule(&m_encoder)?;
-
-    // Register the submodules in the main module to allow importing them directly
-    // This is a bit of a hack: https://github.com/PyO3/pyo3/issues/759
-    let submodules = m.py().import("sys")?.getattr("modules")?;
-    submodules.set_item("ectf25_design.gen_secrets", m_gen_secrets)?;
-    submodules.set_item("ectf25_design.gen_subscription", m_gen_subscription)?;
-    submodules.set_item("ectf25_design.encoder", m_encoder)?;
+fn rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(gen_secrets, m)?)?;
+    m.add_function(wrap_pyfunction!(gen_subscription, m)?)?;
+    m.add_class::<Encoder>()?;
 
     Ok(())
 }

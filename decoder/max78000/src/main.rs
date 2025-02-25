@@ -2,6 +2,7 @@
 #![no_main]
 
 pub mod crypto;
+pub mod decode;
 pub mod host_driver;
 pub mod rng;
 pub mod tmr;
@@ -13,7 +14,8 @@ pub use hal::pac;
 // TODO: Custom panic handler
 use panic_halt as _;
 
-use common::constants::LEN_RNG_SEED;
+use common::constants::*;
+use common::MessageToDecoder;
 use host_driver::{HostDriver, Message, MessageType};
 use rng::new_custom_rng;
 use tmr::Tmr2;
@@ -71,14 +73,16 @@ fn main() -> ! {
 
     loop {
         let message = host.read_message();
-        match message.header.opcode {
-            MessageType::List => {
+        // let res: Result<MessageToDecoder, DecodeError> = bincode::decode_from_reader(&mut host, config);
+        match message {
+            Ok(MessageToDecoder::List) => {
                 unimplemented!("List message not implemented");
-            }
-            MessageType::Subscribe => {
+            },
+            Ok(MessageToDecoder::UpdateSubscription(enc_subscription)) => {
                 unimplemented!("Subscribe message not implemented");
-            }
-            MessageType::Decode => {
+            },
+            Ok(MessageToDecoder::Decode(enc_frame)) => {
+                // handle_decode(host, enc_frame);
                 // unimplemented!("Decode message not implemented");
                 let decoded_frame = b"Hello from the decoder!".as_slice();
                 let mut decode_message = Message::new();
@@ -86,8 +90,36 @@ fn main() -> ! {
                 decode_message.header.length = decoded_frame.len() as u16;
                 decode_message.data[..decoded_frame.len()].copy_from_slice(decoded_frame);
                 host.write_message(decode_message);
+            },
+            Err(_) => {
+                host.write_message(Message::error());
             }
-            _ => {}
-        }
+        };
+        // match message.header.opcode {
+        //     MessageType::List => {
+        //         unimplemented!("List message not implemented");
+        //     }
+        //     MessageType::Subscribe => {
+        //         unimplemented!("Subscribe message not implemented");
+        //     }
+        //     MessageType::Decode => handle_decode(host, message),
+        //     _ => {}
+        // }
     }
 }
+
+// fn handle_decode(host: &mut HostDriver, message: Message) {
+//     if message.header.length != LEN_ENCRYPTED_FRAME {
+//         host.write_message(Message::error());
+//         return;
+//     }
+//     let enc_frame = EncryptedFrame::from_bytes(&message.data);
+//     match decode::decode_frame(enc_frame) {
+//         Ok(response) => {
+//             host.write_message(Message::decode(&response));
+//         }
+//         Err(_) => {
+//             host.write_message(Message::error());
+//         }
+//     }
+// }

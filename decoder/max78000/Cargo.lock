@@ -157,6 +157,7 @@ name = "decoder"
 version = "0.0.0"
 dependencies = [
  "ascon-aead",
+ "bincode",
  "common",
  "cortex-m",
  "cortex-m-rt",

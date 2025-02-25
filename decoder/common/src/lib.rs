@@ -46,27 +46,6 @@ pub enum MessageToDecoder {
     Decode(EncryptedFrame),
 }
 
-impl Decode for MessageToDecoder {
-    fn decode<D: Decoder>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let magic: u8 = Decode::decode(decoder)?;
-        if magic != b'%' {
-            return Err(DecodeError::Other("Invalid magic byte"));
-        }
-
-        let opcode: u8 = Decode::decode(decoder)?;
-        let len: u16 = Decode::decode(decoder)?;
-        match (opcode, len as usize) {
-            (b'L', 0) => Ok(MessageToDecoder::List),
-            (b'S', LEN_ENCRYPTED_SUBSCRIPTION) => Ok(MessageToDecoder::UpdateSubscription(
-                Decode::decode(decoder)?,
-            )),
-            (b'D', LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::Decode(Decode::decode(decoder)?)),
-            (b'L'|b'S'|b'D', _) => Err(DecodeError::Other("Incorrect message length")),
-            _ => Err(DecodeError::Other("Unsupported message")),
-        }
-    }
-}
-
 /// Messages that the decoder can send to the host.
 #[derive(Debug)]
 pub enum MessageFromDecoder {
@@ -258,32 +237,6 @@ mod tests {
             20
         );
         assert_eq!(actual_bytes, sub_bytes);
-    }
-
-    #[test]
-    fn test_update_subscription_to_encoder() {
-        let mut msg_bytes = [0u8; 4 + LEN_ENCRYPTED_SUBSCRIPTION];
-        msg_bytes[..4].copy_from_slice(&[b'%', b'S', LEN_ENCRYPTED_SUBSCRIPTION as u8, 0]);
-        msg_bytes[4..].copy_from_slice(&[0xde; LEN_ENCRYPTED_SUBSCRIPTION]);
-        assert!(matches!(
-            decode_from_slice::<MessageToDecoder, _>(&msg_bytes, config())
-                .unwrap()
-                .0,
-            MessageToDecoder::UpdateSubscription(EncryptedSubscription([0xde, 0xde, ..]))
-        ));
-    }
-
-    #[test]
-    fn test_decode_from_encoder() {
-        let pic = SizedPicture {
-            picture_length: 4,
-            picture: Picture([0xad; LEN_PICTURE]),
-        };
-        let pic_msg = MessageFromDecoder::Decode(pic);
-        let msg_bytes = [b'%', b'D', 4, 0, 0xad, 0xad, 0xad, 0xad];
-        let mut actual_bytes = [0u8; 8];
-        assert_eq!(encode_into_slice(pic_msg, &mut actual_bytes, config()).unwrap(), 8);
-        assert_eq!(actual_bytes, msg_bytes);
     }
 
     // #[test]
