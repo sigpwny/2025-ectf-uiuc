@@ -23,7 +23,7 @@ break rust_begin_unwind
 # break main
 
 # enable semihosting
-monitor arm semihosting enable
+# monitor arm semihosting enable
 
 # load the program
 load

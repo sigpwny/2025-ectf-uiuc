@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+clap = { version = "4.5.31", features = ["derive"] }
 common = { path = "../common" }
 rand = "0.9.0"
 serde = "1.0.217"

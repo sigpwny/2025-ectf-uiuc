@@ -11,4 +11,9 @@ script = "rm -f ./out/max78000.bin"
 [tasks.build-firmware]
 dependencies = ["clean"]
 command = "cargo"
-args = ["run", "--release"]
+args = ["run", "--release", "--",
+  "--firmware", "../max78000/out/decoder.bin",
+  "--decoder-id", "${DECODER_ID}",
+  "--secrets", "./global.secrets",
+  "--output", "./out/max78000.bin"
+]
