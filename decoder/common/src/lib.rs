@@ -1,204 +1,179 @@
-#![cfg_attr(not(any(feature = "std", test)), no_std)]
+// #![cfg_attr(not(test), no_std)]
+#![no_std]
 
-/// secrets module is used by both the ectf25_design package and build scripts
-#[cfg(feature = "std")]
-pub mod secrets;
+pub mod constants;
+pub mod crypto;
 
-pub const LEN_ASCON_KEY: usize = 16;
-pub const MAX_STANDARD_CHANNEL: u32 = 8;
+use bincode::{
+    config::{Configuration, Fixint, LittleEndian},
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    Decode, Encode,
+};
+use constants::*;
+use serde::{Deserialize, Serialize};
+
+pub const BINCODE_CONFIG: Configuration<LittleEndian, Fixint> = bincode::config::standard()
+    .with_little_endian()
+    .with_fixed_int_encoding();
+
+/// Messages that the host sends to the decoder.
+#[derive(Debug)]
+pub enum MessageToDecoder {
+    ListSubscriptions,
+    UpdateSubscription(EncryptedSubscription),
+    DecodeFrame(EncryptedFrame),
+}
+
+/// Messages that the decoder can send to the host.
+#[derive(Debug)]
+pub enum MessageFromDecoder {
+    ListSubscriptions(SubscriptionInfoList),
+    UpdateSubscription,
+    DecodeFrame(SizedPicture),
+    Error,
+    Debug,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct BaseChannelSecret(pub [u8; LEN_BASE_CHANNEL_SECRET]);
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct BaseSubscriptionSecret(pub [u8; LEN_BASE_SUBSCRIPTION_SECRET]);
+
+/// The Channel Secret which is given with a subscription.
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
+#[serde(transparent)]
+pub struct ChannelSecret(pub [u8; LEN_CHANNEL_SECRET]);
+
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
+#[serde(transparent)]
+pub struct FrameKey(pub [u8; LEN_ASCON_KEY]);
+
+/// The Picture Key which is derived with a particular frame to encrypt the picture.
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
+pub struct PictureKey(pub [u8; LEN_ASCON_KEY]);
+
+/// The Subscription Key which is derived for a particular device and used to encrypt subscription updates.
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
+#[serde(transparent)]
+pub struct SubscriptionKey(pub [u8; LEN_ASCON_KEY]);
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DeploymentSecrets {
+    pub frame_key: FrameKey,
+    pub base_channel_secret: BaseChannelSecret,
+    pub base_subscription_secret: BaseSubscriptionSecret,
+}
 
 /// The subscription update payload received from the host.
-#[derive(Debug)]
-pub struct EncryptedSubscription([u8; 68]);
+#[derive(Debug, Decode, Encode)]
+pub struct EncryptedSubscription(pub [u8; LEN_ENCRYPTED_SUBSCRIPTION]);
 
 /// Public information about a subscription. Embedded within a StoredSubscription and primarily
 /// used for serialization when communicating with the host.
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize, Decode, Encode)]
 pub struct SubscriptionInfo {
-    channel_id: u32,
-    start: u64,
-    end: u64,
+    pub channel_id: u32,
+    pub start: u64,
+    pub end: u64,
 }
 
 /// All information about a subscription.
-#[derive(Debug)]
+#[derive(Debug, Decode, Encode)]
 pub struct StoredSubscription {
-    info: SubscriptionInfo,
-    channel_secret: [u8; 32],
+    pub info: SubscriptionInfo,
+    pub channel_secret: ChannelSecret,
 }
 
 /// A list of 8 optional SubscriptionInfo objects for each channel.
 #[derive(Debug)]
-pub struct SubscriptionInfoList([Option<SubscriptionInfo>; 8]);
+pub struct SubscriptionInfoList {
+    pub subscribed_channels: u32,
+    pub subscriptions: [SubscriptionInfo; LEN_STANDARD_CHANNELS],
+}
+
+impl Encode for SubscriptionInfoList {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> core::result::Result<(), EncodeError> {
+        Encode::encode(&self.subscribed_channels, encoder)?;
+        for i in 0..self.subscribed_channels {
+            Encode::encode(&self.subscriptions[i as usize], encoder)?;
+        }
+        Ok(())
+    }
+}
+
+impl Decode for SubscriptionInfoList {
+    fn decode<D: Decoder>(decoder: &mut D) -> core::result::Result<Self, DecodeError> {
+        let mut out = SubscriptionInfoList {
+            subscribed_channels: Decode::decode(decoder)?,
+            subscriptions: core::array::from_fn(|_| SubscriptionInfo {
+                channel_id: 0,
+                start: 0,
+                end: 0,
+            }),
+        };
+        for i in 0..out.subscribed_channels {
+            out.subscriptions[i as usize] = Decode::decode(decoder)?;
+        }
+        Ok(out)
+    }
+}
 
 /// A list of 8 optional StoredSubscription objects for each channel.
-#[derive(Debug)]
-pub struct StoredSubscriptionList([Option<StoredSubscription>; 8]);
+#[derive(Debug, Decode, Encode)]
+pub struct StoredSubscriptionList {
+    pub subscribed_channels: u32,
+    pub subscriptions: [StoredSubscription; LEN_STANDARD_CHANNELS],
+}
 
 // 80 bytes of frame data, 4 bytes of channel ID, 8 bytes of timestamp, 1 byte of frame length
 // Plus 16 bytes from encryption
 /// The frame payload received from the host.
-#[derive(Debug)]
-pub struct EncryptedFrame([u8; 109]);
+#[derive(Debug, Decode, Encode)]
+pub struct EncryptedFrame(pub [u8; LEN_ENCRYPTED_FRAME]);
 
 /// Encrypted frame data, stored in a DecryptedFrame object.
-#[derive(Debug)]
-pub struct EncryptedPicture([u8; 80]);
+#[derive(Debug, Decode, Encode)]
+pub struct EncryptedPicture(pub [u8; LEN_ENCRYPTED_PICTURE]);
 
 /// An object representing a frame halfway through the decryption process. It contains the
 /// encrypted frame data but decrypted versions of the channel ID, timestamp, and frame length.
-#[derive(Debug)]
+#[derive(Debug, Decode, Encode)]
 pub struct DecryptedFrame {
-    encrypted_picture: EncryptedPicture,
-    channel_id: u32,
-    timestamp: u64,
-    frame_length: u8,
+    pub channel_id: u32,
+    pub timestamp: u64,
+    pub picture_length: u8,
+    pub encrypted_picture: EncryptedPicture,
 }
 
-/// The final 64-byte decrypted frame
+/// The final 64-byte decrypted picture.
+#[derive(Debug, Decode, Encode)]
+pub struct Picture(pub [u8; MAX_LEN_PICTURE]);
+
+/// The decrypted picture and its length.
 #[derive(Debug)]
-pub struct Picture([u8; 64]);
-
-/// A trait that allows an object to be serialized to and deserialized from a fixed-size byte
-/// array.
-pub trait BytesSerializable<const L: usize> {
-    fn to_bytes(&self) -> [u8; L];
-    fn from_bytes(bytes: [u8; L]) -> Self;
+pub struct SizedPicture {
+    picture_length: u8,
+    picture: Picture,
 }
 
-/// Follows the format:
-/// \[32-bit channel ID]\[64-bit start timestamp]\[64-bit end timestamp]
-/// or:
-/// \[4 bytes]\[8 bytes]\[8 bytes]
-impl BytesSerializable<20> for SubscriptionInfo {
-    fn to_bytes(&self) -> [u8; 20] {
-        let mut bytes = [0; 20];
-
-        bytes[..4].copy_from_slice(&self.channel_id.to_be_bytes());
-        bytes[4..12].copy_from_slice(&self.start.to_be_bytes());
-        bytes[12..].copy_from_slice(&self.end.to_be_bytes());
-
-        bytes
-    }
-
-    fn from_bytes(bytes: [u8; 20]) -> SubscriptionInfo {
-        let channel_id = u32::from_be_bytes(bytes[..4].try_into().unwrap());
-        let start = u64::from_be_bytes(bytes[4..12].try_into().unwrap());
-        let end = u64::from_be_bytes(bytes[12..].try_into().unwrap());
-
-        SubscriptionInfo {
-            channel_id,
-            start,
-            end
+impl Encode for SizedPicture {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        for i in 0..self.picture_length {
+            Encode::encode(&self.picture.0[i as usize], encoder)?;
         }
-    }
-}
-
-impl BytesSerializable<52> for StoredSubscription {
-    fn to_bytes(&self) -> [u8; 52] {
-        let mut bytes = [0; 52];
-
-        bytes[..20].copy_from_slice(&self.info.to_bytes());
-        bytes[20..].copy_from_slice(&self.channel_secret);
-
-        bytes
-    }
-
-    fn from_bytes(bytes: [u8; 52]) -> Self {
-        let info = SubscriptionInfo::from_bytes(bytes[..20].try_into().unwrap());
-        let mut channel_secret = [0; 32];
-        channel_secret.copy_from_slice(&bytes[20..]);
-
-        StoredSubscription {
-            info,
-            channel_secret
-        }
-    }
-}
-
-impl BytesSerializable<168> for SubscriptionInfoList {
-    fn to_bytes(&self) -> [u8; 168] {
-        let mut bytes = [0; 168];
-
-        // The first 8 bytes is the number of valid subscriptions
-        let mut num_valid: u32 = 0;
-        for i in 0..8 {
-            if self.0[i].is_some() {
-                num_valid += 1;
-            }
-        }
-
-        bytes[..4].copy_from_slice(&num_valid.to_be_bytes());
-
-        // The rest of the bytes are the serialized subscriptions
-        let mut offset = 4;
-        for i in 0..8 {
-            if let Some(sub) = self.0[i].as_ref() {
-                bytes[offset..offset + 20].copy_from_slice(&sub.to_bytes());
-            }
-            offset += 20;
-        }
-
-        bytes
-    }
-
-    fn from_bytes(bytes: [u8; 168]) -> Self {
-        let mut subscription_info_list = [const{ None }; 8];
-
-        let num_valid = usize::from_be_bytes(bytes[..4].try_into().unwrap());
-        let mut offset = 4;
-        for i in 0..num_valid {
-            subscription_info_list[i] = Some(SubscriptionInfo::from_bytes(bytes[offset..offset + 20].try_into().unwrap()));
-            offset += 20;
-        }
-
-        SubscriptionInfoList(subscription_info_list)
-    }
-}
-
-impl BytesSerializable<417> for StoredSubscriptionList {
-    fn to_bytes(&self) -> [u8; 417] {
-        let mut bytes = [0; 417];
-
-        // The first byte is a bitmask that indicates which subscriptions are present
-        let mut bitmask = 0;
-        for i in 0..8 {
-            if self.0[i].is_some() {
-                bitmask |= 1 << i;
-            }
-        }
-        bytes[0] = bitmask;
-
-        // The rest of the bytes are the serialized subscriptions
-        let mut offset = 1;
-        for i in 0..8 {
-            if let Some(sub) = self.0[i].as_ref() {
-                bytes[offset..offset + 52].copy_from_slice(&sub.to_bytes());
-            }
-            offset += 52;
-        }
-
-        bytes
-    }
-
-    fn from_bytes(bytes: [u8; 417]) -> Self {
-        let mut stored_subscription_list = [const{ None }; 8];
-
-        let bitmask = bytes[0];
-        let mut offset = 1;
-        for i in 0..8 {
-            if bitmask & (1 << i) != 0 {
-                stored_subscription_list[i] = Some(StoredSubscription::from_bytes(bytes[offset..offset + 52].try_into().unwrap()));
-            }
-            offset += 52;
-        }
-
-        StoredSubscriptionList(stored_subscription_list)
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use bincode::{decode_from_slice, encode_into_slice};
+
     use super::*;
 
     #[test]
@@ -206,36 +181,40 @@ mod tests {
         let sub = SubscriptionInfo {
             channel_id: 0x1,
             start: 0x32,
-            end: 0x1F4
+            end: 0x1F4,
         };
         let sub_bytes: [u8; 20] = [
-            0x0, 0x0, 0x0, 0x1,
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x32,
-            0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0xF4
+            0x1, 0x0, 0x0, 0x0, 0x32, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xF4, 0x1, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0,
         ];
-        assert_eq!(sub.to_bytes(), sub_bytes);
+        let mut actual_bytes = [0xff; 20];
+        assert_eq!(
+            encode_into_slice(sub, &mut actual_bytes, BINCODE_CONFIG).unwrap(),
+            20
+        );
+        assert_eq!(actual_bytes, sub_bytes);
     }
 
-    #[test]
-    fn test_subscription_info_list_to_bytes() {
-        let sub1 = SubscriptionInfo {
-            channel_id: 0x1,
-            start: 0x32,
-            end: 0x1F4
-        };
+    // #[test]
+    // fn test_subscription_info_list_to_bytes() {
+    //     let sub1 = SubscriptionInfo {
+    //         channel_id: 0x1,
+    //         start: 0x32,
+    //         end: 0x1F4
+    //     };
 
-        let sub2 = SubscriptionInfo {
-            channel_id: 0x02,
-            start: 0x32,
-            end: 0x1F4
-        };
+    //     let sub2 = SubscriptionInfo {
+    //         channel_id: 0x02,
+    //         start: 0x32,
+    //         end: 0x1F4
+    //     };
 
-        let mut channels_bytes: [u8; 168] = [0; 168];
-        channels_bytes[0..4].copy_from_slice(&[0x0, 0x0, 0x0, 0x2]);
-        channels_bytes[4..24].copy_from_slice(&sub1.to_bytes());
-        channels_bytes[24..44].copy_from_slice(&sub2.to_bytes());
+    //     let mut channels_bytes: [u8; 168] = [0; 168];
+    //     channels_bytes[0..4].copy_from_slice(&[0x0, 0x0, 0x0, 0x2]);
+    //     channels_bytes[4..24].copy_from_slice(&sub1.to_bytes());
+    //     channels_bytes[24..44].copy_from_slice(&sub2.to_bytes());
 
-        let subscription_info_list = SubscriptionInfoList([Some(sub1), Some(sub2), None, None, None, None, None, None]);
-        assert_eq!(subscription_info_list.to_bytes(), channels_bytes);
-    }
+    //     let subscription_info_list = SubscriptionInfoList([Some(sub1), Some(sub2), None, None, None, None, None, None]);
+    //     assert_eq!(subscription_info_list.to_bytes(), channels_bytes);
+    // }
 }

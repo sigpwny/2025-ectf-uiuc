@@ -16,7 +16,7 @@ args = ["objcopy", "--release", "--", "-O", "binary", "./out/decoder.bin"]
 [tasks.build-dev]
 description = "Full development build"
 command = "cargo"
-args = ["build --dev"]
+args = ["build"]
 
 [tasks.clean]
 script_runner = "@shell"

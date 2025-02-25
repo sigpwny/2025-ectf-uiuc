@@ -3,20 +3,21 @@
 #
 #    maturin generate-ci github
 #
-name: CI
+name: CI (Python)
 
 on:
   push:
-    branches:
-      - main
-      - master
-    tags:
-      - '*'
-  pull_request:
+    paths:
+      - '.github/**'
+      - 'design/**'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  CI_WORKING_DIR: design/ectf25_design
+  CI_OUTPUT_WHEELS: design/wheels
 
 jobs:
   linux:
@@ -48,11 +49,12 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
+          working-directory: ${{ env.CI_WORKING_DIR }}
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.CI_WORKING_DIR }}/dist
 
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
@@ -79,11 +81,12 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
           manylinux: musllinux_1_2
+          working-directory: ${{ env.CI_WORKING_DIR }}
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-musllinux-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.CI_WORKING_DIR }}/dist
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
@@ -106,11 +109,12 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          working-directory: ${{ env.CI_WORKING_DIR }}
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-windows-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.CI_WORKING_DIR }}/dist
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -132,11 +136,12 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          working-directory: ${{ env.CI_WORKING_DIR }}
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.CI_WORKING_DIR }}/dist
 
   sdist:
     runs-on: ubuntu-latest
@@ -147,35 +152,37 @@ jobs:
         with:
           command: sdist
           args: --out dist
+          working-directory: ${{ env.CI_WORKING_DIR }}
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
           name: wheels-sdist
-          path: dist
+          path: ${{ env.CI_WORKING_DIR }}/dist
 
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch' }}
     needs: [linux, musllinux, windows, macos, sdist]
     permissions:
-      # Use to sign the release artifacts
-      id-token: write
-      # Used to upload release artifacts
       contents: write
-      # Used to generate artifact attestation
-      attestations: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Create target directory
+        run: mkdir -p ${{ env.CI_OUTPUT_WHEELS }}
       - uses: actions/download-artifact@v4
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
         with:
-          subject-path: 'wheels-*/*'
-      - name: Publish to PyPI
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        uses: PyO3/maturin-action@v1
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          path: ./temp
+      - name: Clean previous wheels the target directory
+        run: rm -rf ${{ env.CI_OUTPUT_WHEELS }}/*
+      - name: Move downloaded wheels
+        run: |
+          mv ./temp/wheels-*/* ${{ env.CI_OUTPUT_WHEELS }}
+          rm -rf ./temp
+      - name: Commit wheels
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          command: upload
-          args: --non-interactive --skip-existing wheels-*/*
+          commit_message: "chore: update wheels"
+          file_pattern: "${{ env.CI_OUTPUT_WHEELS }}/*"
