@@ -86,20 +86,24 @@ fn main() -> std::io::Result<()> {
     let subscription_key_end = subscription_key_start + LEN_ASCON_KEY;
     output_firmware[subscription_key_start..subscription_key_end].copy_from_slice(&subscription_key.0);
 
-    // Write channel 0 subscription to firmware
-    let channel_0_subscription_start = FLASH_OFFSET_SUBSCRIPTION_BASE as usize;
-    let channel_0_subscription_end = channel_0_subscription_start + LEN_STORED_SUBSCRIPTION;
-    let channel_0_secret = derive_channel_secret(&secrets.base_channel_secret, 0);
-    let channel_0_subscription = StoredSubscription {
+    // Set up channel 0 subscription
+    let c0_sub_start = FLASH_OFFSET_SUBSCRIPTION_BASE as usize;
+    let c0_secret = derive_channel_secret(&secrets.base_channel_secret, 0);
+    let c0_sub = StoredSubscription {
         info: SubscriptionInfo {
             channel_id: 0,
             start: 0,
             end: u64::MAX,
         },
-        channel_secret: channel_0_secret,
+        channel_secret: c0_secret,
     };
-    // TODO: Implement channel 0 subscription
-    unimplemented!("Channel 0 subscription needs to be saved to firmware!");
+    let mut sub_bytes = [0u8; 64];
+    sub_bytes[0..16].copy_from_slice(&[0x53; 16]); // Magic bytes
+    sub_bytes[16..24].copy_from_slice(&c0_sub.info.start.to_le_bytes()); // Start timestamp
+    sub_bytes[24..32].copy_from_slice(&c0_sub.info.end.to_le_bytes()); // End timestamp
+    sub_bytes[32..64].copy_from_slice(&c0_sub.channel_secret.0); // Channel secret
+    // Write subscription to firmware
+    output_firmware[c0_sub_start..c0_sub_start + 64].copy_from_slice(&sub_bytes);
 
     // Write to final firmware file
     let mut output = File::create(args.output)?;
