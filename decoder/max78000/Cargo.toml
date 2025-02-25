@@ -9,6 +9,7 @@ targets = ["thumbv7em-none-eabihf"]
 
 [dependencies]
 ascon-aead = { version = "0.4.2", default-features = false, features = ["zeroize"] }
+bincode = { version = "2.0.0-rc.3", default-features = false, features = ["derive", "serde"] }
 common = { path = "../common" }
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = { version = "0.7.5", features = ["set-sp", "set-vtor"] }
