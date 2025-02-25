@@ -5,6 +5,7 @@ pub mod crypto;
 pub mod decode;
 pub mod host_driver;
 pub mod rng;
+pub mod subscription;
 pub mod tmr;
 
 pub extern crate max7800x_hal as hal;

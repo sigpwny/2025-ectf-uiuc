@@ -86,6 +86,7 @@ dependencies = [
  "bincode",
  "serde",
  "tiny-keccak",
+ "zeroize",
 ]
 
 [[package]]
@@ -169,6 +170,7 @@ dependencies = [
  "rand_chacha",
  "sha3",
  "tiny-keccak",
+ "zeroize",
 ]
 
 [[package]]

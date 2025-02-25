@@ -1,58 +1,73 @@
-use common::{SubscriptionInfo, SubscriptionInfoList, BytesSerializable, StoredSubscription};
-use max7800x_hal::flc::{Flc, FlashError, FLASH_BASE, FLASH_PAGE_SIZE}
+use common::{
+    ChannelSecret,
+    SubscriptionInfo,
+    SubscriptionInfoList,
+    StoredSubscription,
+};
+use common::constants::*;
+use max7800x_hal::flc::{Flc, FlashError};
+use zeroize::Zeroize;
 
-pub const FLASH_ADDR_SUBSCRIPTION_BASE: u32 = FLASH_BASE + (27 * FLASH_PAGE_SIZE);
+/// Helper function to write 16 bytes to flash
+pub fn write_16b(flc: &mut Flc, addr: u32, data: &[u8; 16]) -> Result<(), FlashError> {
+    let data_u32: [u32; 4] = [
+        u32::from_le_bytes([data[3], data[2], data[1], data[0]]),
+        u32::from_le_bytes([data[7], data[6], data[5], data[4]]),
+        u32::from_le_bytes([data[11], data[10], data[9], data[8]]),
+        u32::from_le_bytes([data[15], data[14], data[13], data[12]]),
+    ];
 
-// assert_eq!(FLASH_ADDR_SUBSCRIPTION_BASE, 0x10060000);
+    flc.write_128(addr, &data_u32)
+}
 
-// 0x1000_E000
-// firmware size = 0x38000
-// 0x1004_2000 - 0x1004_3FFF - global secrets
-//  - frame key (16 bytes)
-//  - subscription key (16 bytes, specific for decoder)
+/// Helper function to read 16 bytes from flash
+pub fn read_16b(flc: &mut Flc, addr: u32, data: &mut [u8; 16]) -> Result<(), FlashError> {
+    let data_u32: [u32; 4] = flc.read_128(addr)?;
 
-// 0x1004_4000 - 0x1004_5FFF (size: 0x2000, which is 8192 bytes) - subscription storage
+    for i in 0..4 {
+        let start = i * 4;
+        let end = start + 4;
+        let chunk = &data_u32[i].to_le_bytes();
 
-// channel 0 subscription (valid for 0x0 - max timestamp (u64))
-// each subscription: 16 bytes (0x53) + 8 bytes (start) + 8 bytes (end) + 32 bytes (channel secret)
-// each channel is stored on its own page (channel 1 at index 28, channel 2 at index 29, etc)
+        data[start..end].copy_from_slice(chunk);
+    }
 
-// 0x1008_0000 (64 pages total)
-
-// https://docs.rs/max7800x-hal/latest/max7800x_hal/flc/struct.Flc.html
-
+    Ok(())
+}
 
 // This is only called after we have verified/authenticated/decrypted the update subscription message
-pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscription) -> Result<(), FlashError> {
-    let subscription_loc: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + subscription.info.channel_id * FLASH_PAGE_SIZE;
+pub fn update_subscription(flc: &mut Flc, new_sub: StoredSubscription) -> Result<(), FlashError> {
+    assert!(new_sub.info.channel_id >= 1 && new_sub.info.channel_id <= MAX_STANDARD_CHANNEL, "Invalid channel ID");
+
+    let sub_addr: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + (new_sub.info.channel_id * FLASH_PAGE_SIZE);
 
     unsafe {
-        flc.erase_page(subscription_loc)?;
+        flc.erase_page(sub_addr)?;
     }
-    
-    let mut serialized_subscripton = [0xFFu8; 64];
 
-    // Serialize a stored subscription
-    let serialized_stored_subscription: [u8; 52] = subscription.to_bytes();
+    // The first 16 bytes are magic bytes and remain unchanged
+    let mut sub_bytes = [0x53u8; 64];
 
-    serialized_subscription[0..16].copy_from_slice(&[0x53u8; 16]); // padding (16 bytes of 0x53)
-    serialized_subscription[16..].copy_from_slice(&serialized_stored_subscription[4..]); // stored subscription without channel_id
-    
-    // u8 -> u32 then write four u32's
+    // Add the timestamps
+    let start_bytes = new_sub.info.start.to_le_bytes();
+    let end_bytes = new_sub.info.end.to_le_bytes();
+    sub_bytes[16..24].copy_from_slice(&start_bytes);
+    sub_bytes[24..32].copy_from_slice(&end_bytes);
+
+    // Add the channel secret
+    sub_bytes[32..64].copy_from_slice(&new_sub.channel_secret.0);
+
+    // Write 64 bytes (4x16) to flash
     for i in 0..4 {
         let start = i * 16;
         let end = start + 16;
-        let chunk = &serialized_subscription[start..end];
+        let mut chunk: [u8; 16] = sub_bytes[start..end].try_into().unwrap();
 
-        let chunk_u32: [u32; 4] = [
-            u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]),
-            u32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]),
-            u32::from_le_bytes([chunk[8], chunk[9], chunk[10], chunk[11]]),
-            u32::from_le_bytes([chunk[12], chunk[13], chunk[14], chunk[15]]),
-        ];
-
-        flc.write_128(subscription_loc + (i * 16), &chunk_u32)?;
+        write_16b(flc, sub_addr + (i * 16) as u32, &chunk)?;
+        chunk.zeroize();
     }
+
+    sub_bytes.zeroize();
 
     Ok(())
 }
@@ -60,86 +75,75 @@ pub fn update_subscription(flc: &mut Flc, subscription: StoredSubscription) -> R
 // For the decoder function
 pub fn get_channel_subscription(flc: &mut Flc, channel_id: u32) -> Result<StoredSubscription, ()> {
     // Ensure channel ID is 0-8 (inclusive)
-    if channel_id < 0 || channel_id > 8 {
-        return Ok(());
+    if channel_id > MAX_STANDARD_CHANNEL {
+        return Err(());
     }
-    
-    let subscription_loc: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + channel_id * FLASH_PAGE_SIZE;
-    
-    // make sure to validate first 16 bytes are 0x53 
-    let header: [u32; 4] = flc.read_128(subscription_loc).unwrap();
-    for i in 0..4 {
-        if header[i] != 0x5353_5353 {
-            return Ok(());
+
+    let sub_addr: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + (channel_id * FLASH_PAGE_SIZE);
+
+    // Validate magic bytes (indicates an enabled subscription)
+    let mut header_bytes = [0u8; 16];
+    read_16b(flc, sub_addr, &mut header_bytes).unwrap();
+    for byte in &header_bytes {
+        if *byte != 0x53 {
+            return Err(());
         }
     }
 
-    let timestamps: [u32; 4] = flc.read_128(subscription_loc + 64).unwrap();
-    let start: u64 = ((timestamps[0] as u64) << 32) + (timestamps[1] as u64); // could be a catastrophic bit fiddling error
-    let end: u64 = ((timestamps[2] as u64) << 32) + (timestamps[3] as u64);   // here too
-    let info: SubscriptionInfo = SubscriptionInfo {
-        channel_id,
-        start,
-        end
-    }
+    // Read the timestamps
+    let mut timestamp_bytes = [0u8; 16];
+    read_16b(flc, sub_addr + 16, &mut timestamp_bytes).unwrap();
+    let start: u64 = u64::from_le_bytes(timestamp_bytes[0..8].try_into().unwrap());
+    let end: u64 = u64::from_le_bytes(timestamp_bytes[8..16].try_into().unwrap());
+    assert!(start <= end, "Invalid subscription timestamps");
 
-    let sec_p1: [u32; 4] = flc.read_128(subscription_loc + 64*2).unwrap();
-    let sec_p2: [u32; 4] = flc.read_128(subscription_loc + 64*3).unwrap();
-    let channel_secret: [u8; 32] = [0; 32];
-    for i in 0..8 {
-        let b1: u8 = if i < 4 { ((sec_p1[i] & 0xFF00_0000) >> 24) as u8 } else { ((sec_p2[4 - i] & 0xFF00_0000) >> 24) as u8 }; // this could also be a bit fiddling tragedy
-        let b2: u8 = if i < 4 { ((sec_p1[i] & 0x00FF_0000) >> 16) as u8 } else { ((sec_p2[4 - i] & 0x00FF_0000) >> 16) as u8 };
-        let b3: u8 = if i < 4 { ((sec_p1[i] & 0x0000_FF00) >>  8) as u8 } else { ((sec_p2[4 - i] & 0x0000_FF00) >>  8) as u8 };
-        let b4: u8 = if i < 4 { ((sec_p1[i] & 0x0000_00FF) >>  0) as u8 } else { ((sec_p2[4 - i] & 0x0000_00FF) >>  0) as u8 };
+    // Read the channel secret
+    let mut channel_secret_bytes_1 = [0u8; 16];
+    let mut channel_secret_bytes_2 = [0u8; 16];
+    read_16b(flc, sub_addr + 32, &mut channel_secret_bytes_1).unwrap();
+    read_16b(flc, sub_addr + 48, &mut channel_secret_bytes_2).unwrap();
+    let mut channel_secret_bytes = [0u8; 32];
+    channel_secret_bytes[0..16].copy_from_slice(&channel_secret_bytes_1);
+    channel_secret_bytes[16..32].copy_from_slice(&channel_secret_bytes_2);
 
-        channel_secret[4*i] = b1;
-        channel_secret[4*i + 1] = b2;
-        channel_secret[4*i + 2] = b3;
-        channel_secret[4*i + 3] = b4;
-    }
+    // Construct the stored subscription
+    let stored_sub = StoredSubscription {
+        info: SubscriptionInfo {
+            channel_id,
+            start,
+            end,
+        },
+        channel_secret: ChannelSecret(channel_secret_bytes),
+    };
 
-    return Ok(StoredSubscription {
-        info,
-        channel_secret
-    })
+    // Zeroize the temporary variables for channel secret
+    channel_secret_bytes_1.zeroize();
+    channel_secret_bytes_2.zeroize();
+
+    Ok(stored_sub)
 }
 
 // For list subscriptions
 pub fn get_subscriptions(flc: &mut Flc) -> SubscriptionInfoList {
-    // call get_channel_subscription_info for each channel (1-8);
-    let mut subscriptions = [None; 8];
+    let mut subscriptions = core::array::from_fn(|_| SubscriptionInfo {
+        channel_id: 0,
+        start: 0,
+        end: 0,
+    });
 
-    for (i, channel_id) in (1..=8).enumerate() {
-        if let Ok(subscription) = get_channel_subscription(flc, channel_id) {
-            subscriptions[i] = Some(subscription.info);
+    let mut subscribed_channels: usize = 0;
+    for channel_id in 1..=MAX_STANDARD_CHANNEL {
+        match get_channel_subscription(flc, channel_id) {
+            Ok(sub) => {
+                subscriptions[subscribed_channels] = sub.info;
+                subscribed_channels += 1;
+            }
+            Err(_) => (),
         }
     }
 
-    SubscriptionInfoList(subscriptions)
+    SubscriptionInfoList {
+        subscribed_channels: subscribed_channels as u32,
+        subscriptions,
+    }
 }
-
-/*
-CHANNEL_ADDRESSES = [u32; 8] //flash addresses for each subscription
-
-fn as_u32_le(array: &[u8; 4]) -> u32 {
-    ((array[0] as u32) <<  0) +
-    ((array[1] as u32) <<  8) +
-    ((array[2] as u32) << 16) +
-    ((array[3] as u32) << 24)
-}
-
-store_subscription(Channels channels):
-    // assume channels is already verified at this stage
-    for i in 0..channels.len():
-        subscription_bytes = channels[i].Some().to_bytes();
-        32bit_sub = as_32_le(subscription_bytes);
-        flc.write_32(CHANNEL_ADDRESS[i], 32bit_sub);
-    return write_to_flash_message;
-
-read_from_flash(int channel_num):
-    subscription = flc.read_32(CHANNEL_ADDRESSES[i]).unwrap();
-    if subscription == {default_value}:
-        return Err;
-    else:
-        return subscription;
-*/
