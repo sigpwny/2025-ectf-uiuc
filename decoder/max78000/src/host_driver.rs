@@ -1,10 +1,9 @@
 use bincode::{
-    de::{Decode, read::Reader},
-    enc::{Encoder, write::Writer},
+    de::read::Reader,
     error::DecodeError,
     decode_from_reader,
 };
-use common::{MessageToDecoder, MessageFromDecoder, BINCODE_CONFIG};
+use common::{MessageToDecoder, BINCODE_CONFIG};
 use common::constants::*;
 use core::convert::Infallible;
 use cortex_m::delay::Delay;
@@ -216,9 +215,6 @@ where
 
     /// Read a message from the host computer.
     pub fn read_message(&mut self) -> Result<MessageToDecoder, UartError> {
-        // Random delay
-        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
-
         let header = self.read_header()?;
 
         self.state = UartState::NumBytesRead(0);
@@ -236,7 +232,7 @@ where
         self.write_ack();
 
         // Random delay
-        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 2_000));
 
         result
     }
@@ -244,7 +240,7 @@ where
     /// Write a message to the host computer.
     pub fn write_message(&mut self, message: Message) {
         // Random delay
-        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 2_000));
 
         let _ = self.write_header(&message.header);
         if message.header.should_ack() {
@@ -264,9 +260,6 @@ where
                 self.read_ack();
             }
         }
-
-        // Random delay
-        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
     }
 
     /// Read an ACK message from the host computer. Blocks until an ACK is received.
