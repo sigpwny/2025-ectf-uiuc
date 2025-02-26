@@ -38,7 +38,6 @@ pub fn decrypt_ascon(ascon_data: &[u8], key_bytes: &[u8; LEN_ASCON_KEY], output_
 
     let key = Key::<Ascon128>::from_slice(key_bytes);
     let nonce = Nonce::<Ascon128>::from_slice(nonce_bytes);
-    // let tag = Tag::<Ascon128>::from_slice(tag);
     let cipher = Ascon128::new(key);
     let mut output_vec: Vec<u8, 256> = Vec::new();
     // Add the encrypted data to the output for decryption in place

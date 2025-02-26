@@ -108,12 +108,6 @@ fn main() -> ! {
                 }
             },
             Ok(MessageToDecoder::DecodeFrame(enc_frame)) => {
-                // let decoded_frame = b"Hello from the decoder!".as_slice();
-                // let mut decode_message = Message::new();
-                // decode_message.header.opcode = MessageType::Decode;
-                // decode_message.header.length = decoded_frame.len() as u16;
-                // decode_message.data[..decoded_frame.len()].copy_from_slice(decoded_frame);
-                // host.write_message(decode_message);
                 match decrypt_frame(&enc_frame) {
                     Ok(dec_frame) => {
                         // TODO: Add random delay here

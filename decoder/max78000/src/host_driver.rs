@@ -17,7 +17,6 @@ pub const MAX_MESSAGE_SIZE: usize = 0x100; // 256 bytes
 pub const BLOCK_SIZE: usize = 0x100; // 256 bytes
 
 /// The type of message being sent or received over the host transport interface.
-// TODO: Set MessageType based on opcode
 #[derive(Eq, PartialEq, Clone)]
 pub enum MessageType {
     Invalid,
@@ -230,7 +229,7 @@ where
         self.write_ack();
 
         // Random delay
-        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 2_000));
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 10, 3_000));
 
         result
     }
@@ -238,7 +237,7 @@ where
     /// Write a message to the host computer.
     pub fn write_message(&mut self, message: Message) {
         // Random delay
-        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 2_000));
+        repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 10, 3_000));
 
         let _ = self.write_header(&message.header);
         if message.header.should_ack() {
@@ -336,7 +335,6 @@ where
             MessageType::Error => b'E',
             MessageType::Debug => b'G',
             _ => b'E',
-            // _ => return Err(embedded_hal_nb::nb::Error::Other(ErrorHeader::InvalidOpcode))
         };
 
         let length_bytes = header.length.to_le_bytes();
