@@ -1,10 +1,12 @@
 \documentclass[12pt]{article}
 
 \usepackage[utf8]{inputenc}
+\usepackage{amsmath}
 \usepackage{fontspec}
 \usepackage{graphicx}
 \usepackage{setspace}
 \usepackage{geometry}
+\usepackage[skip=1em,indent,parfill]{parskip}
 \usepackage{titlesec}
 \usepackage{tabularx}
 \usepackage[hidelinks]{hyperref}
@@ -14,9 +16,15 @@
 \author{SIGPwny (UIUC)}
 \geometry{letterpaper, portrait, margin=1in, bmargin=1in, tmargin=1in}
 \setmainfont{Inter}
+\setmonofont{Hack}[Scale=0.8]
+\setlength{\parindent}{0pt}
+% \setlength{\parskip}{6pt plus 2pt minus 1pt}
 \hypersetup{linktoc=all}
 \renewcommand*\contentsname{Table of Contents}
 % \renewcommand{\baselinestretch}{1.5} 
+
+\providecommand{\tightlist}{
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
 \begin{document}
 
@@ -31,8 +39,9 @@
 {\fontsize{28}{32}\selectfont\textbf{UIUC Design Document}}
 \par\bigskip
 \begin{tabularx}{\linewidth}{@{}>{\bfseries}l@{\hspace{.5em}}X@{}}
-  Revision & v1.0 \\
   Last updated & \today \\
+  School & University of Illinois Urbana-Champaign \\
+  Team & SIGPwny \\
   Advisor & Kirill Levchenko \\
   Members & \raggedright
     Minh Duong,
