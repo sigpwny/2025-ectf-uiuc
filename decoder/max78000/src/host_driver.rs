@@ -14,7 +14,7 @@ use embedded_hal_nb::nb::block;
 use embedded_hal_nb::serial;
 use rand::RngCore;
 
-pub const MAX_MESSAGE_SIZE: usize = 0x400; // 1024 bytes
+pub const MAX_MESSAGE_SIZE: usize = 0x100; // 256 bytes
 pub const BLOCK_SIZE: usize = 0x100; // 256 bytes
 
 /// The type of message being sent or received over the host transport interface.
@@ -100,6 +100,26 @@ impl Message {
         }
     }
 
+    pub fn list() -> Self {
+        Self {
+            header: MessageHeader {
+                opcode: MessageType::List,
+                length: 0,
+            },
+            data: [0u8; MAX_MESSAGE_SIZE],
+        }
+    }
+
+    pub fn subscribe() -> Self {
+        Self {
+            header: MessageHeader {
+                opcode: MessageType::Subscribe,
+                length: 0,
+            },
+            data: [0u8; MAX_MESSAGE_SIZE],
+        }
+    }
+
     pub fn debug(message: &[u8]) -> Self {
         let mut data = [0u8; MAX_MESSAGE_SIZE];
         data[..message.len()].copy_from_slice(message);
@@ -122,6 +142,20 @@ impl Message {
             },
             data,
         }
+    }
+
+    /// Adds additional data to the message (increments the length).
+    pub fn add_data(&mut self, data: &[u8]) {
+        let end = core::cmp::min(self.header.length as usize + data.len(), MAX_MESSAGE_SIZE);
+        self.data[self.header.length as usize..end].copy_from_slice(data);
+        self.header.length = end as u16;
+    }
+
+    /// Adds additional data to the message, bounded by the given length.
+    pub fn add_data_bounded(&mut self, data: &[u8], length: usize) {
+        let end = core::cmp::min(self.header.length as usize + length, MAX_MESSAGE_SIZE);
+        self.data[self.header.length as usize..end].copy_from_slice(&data[..length]);
+        self.header.length = end as u16;
     }
 }
 
@@ -205,46 +239,6 @@ where
         repeat_5!(delay_random_us(&mut self.delay, &mut self.rng, 0, 1_000));
 
         result
-
-        // let mut message = Message::new();
-
-        // TODO: Add random delay here
-
-        // Keep reading headers until we get a valid one
-        // loop {
-        //     let res = self.read_header();
-        //     self.write_ack();
-        //     match res {
-        //         Ok(header) => {
-        //             message.header = header;
-        //             break;
-        //         }
-        //         Err(_) => {
-        //             self.write_message(Message::error());
-        //             self.read_ack();
-        //         }
-        //     }
-        // }
-
-        // // Read the message data in blocks of BLOCK_SIZE
-        // // After each block, send an ACK message
-        // // Read until either message.data is full or the header length is reached
-        // let mut bytes_read = 0;
-        // let read_limit = core::cmp::min(message.header.length as usize, message.data.len());
-        // while bytes_read < read_limit {
-        //     let end = core::cmp::min(bytes_read + BLOCK_SIZE, read_limit);
-        //     for i in bytes_read..end {
-        //         if let Ok(val) = block!(self.uart.read()) {
-        //             message.data[i] = val;
-        //             bytes_read += 1;
-        //         }
-        //     }
-        //     self.write_ack();
-        // }
-
-        // // TODO: Add random delay here
-
-        // message
     }
 
     /// Write a message to the host computer.

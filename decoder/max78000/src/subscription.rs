@@ -1,20 +1,24 @@
+use bincode::decode_from_slice;
 use common::{
     ChannelSecret,
+    EncryptedSubscription,
+    StoredSubscription,
     SubscriptionInfo,
     SubscriptionInfoList,
-    StoredSubscription,
+    BINCODE_CONFIG,
 };
 use common::constants::*;
+use crate::crypto::{decrypt_ascon, get_subscription_key};
 use max7800x_hal::flc::{Flc, FlashError};
 use zeroize::Zeroize;
 
 /// Helper function to write 16 bytes to flash
 pub fn write_16b(flc: &mut Flc, addr: u32, data: &[u8; 16]) -> Result<(), FlashError> {
     let data_u32: [u32; 4] = [
-        u32::from_le_bytes([data[3], data[2], data[1], data[0]]),
-        u32::from_le_bytes([data[7], data[6], data[5], data[4]]),
-        u32::from_le_bytes([data[11], data[10], data[9], data[8]]),
-        u32::from_le_bytes([data[15], data[14], data[13], data[12]]),
+        u32::from_le_bytes(data[0..4].try_into().unwrap()),
+        u32::from_le_bytes(data[4..8].try_into().unwrap()),
+        u32::from_le_bytes(data[8..12].try_into().unwrap()),
+        u32::from_le_bytes(data[12..16].try_into().unwrap()),
     ];
 
     flc.write_128(addr, &data_u32)
@@ -33,6 +37,28 @@ pub fn read_16b(flc: &mut Flc, addr: u32, data: &mut [u8; 16]) -> Result<(), Fla
     }
 
     Ok(())
+}
+
+pub fn decrypt_subscription(enc_subscription: EncryptedSubscription) -> Result<StoredSubscription, ()> {
+    let mut dec_sub_bytes = [0u8; LEN_STORED_SUBSCRIPTION];
+
+    let subscription_key = get_subscription_key();
+    match decrypt_ascon(&enc_subscription.0, &subscription_key.0, &mut dec_sub_bytes) {
+        Ok(_) => (),
+        Err(_) => return Err(()),
+    }
+
+    let dec_sub: StoredSubscription = match decode_from_slice(&dec_sub_bytes, BINCODE_CONFIG) {
+        Ok((sub, bytes_read)) => {
+            if bytes_read != LEN_STORED_SUBSCRIPTION {
+                return Err(());
+            }
+            sub
+        },
+        Err(_) => return Err(()),
+    };
+
+    Ok(dec_sub)
 }
 
 // This is only called after we have verified/authenticated/decrypted the update subscription message
@@ -58,7 +84,8 @@ pub fn update_subscription(flc: &mut Flc, new_sub: StoredSubscription) -> Result
     sub_bytes[32..64].copy_from_slice(&new_sub.channel_secret.0);
 
     // Write 64 bytes (4x16) to flash
-    for i in 0..4 {
+    // Write backwards so that the magic bytes are not written until the end
+    for i in (0..4).rev() {
         let start = i * 16;
         let end = start + 16;
         let mut chunk: [u8; 16] = sub_bytes[start..end].try_into().unwrap();
@@ -131,19 +158,19 @@ pub fn get_subscriptions(flc: &mut Flc) -> SubscriptionInfoList {
         end: 0,
     });
 
-    let mut subscribed_channels: usize = 0;
+    let mut num_sub_channels: usize = 0;
     for channel_id in 1..=MAX_STANDARD_CHANNEL {
         match get_channel_subscription(flc, channel_id) {
             Ok(sub) => {
-                subscriptions[subscribed_channels] = sub.info;
-                subscribed_channels += 1;
+                subscriptions[num_sub_channels] = sub.info;
+                num_sub_channels += 1;
             }
             Err(_) => (),
         }
     }
 
     SubscriptionInfoList {
-        subscribed_channels: subscribed_channels as u32,
+        num_sub_channels: num_sub_channels as u32,
         subscriptions,
     }
 }

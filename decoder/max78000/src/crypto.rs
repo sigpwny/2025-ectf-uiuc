@@ -10,16 +10,19 @@
 
 use ascon_aead::{Ascon128, Key, Nonce};
 use ascon_aead::aead::{AeadInPlace, KeyInit};
+use ascon_aead::aead::heapless::Vec;
 use common::constants::{
-    LEN_ASCON_KEY,
-    LEN_ASCON_NONCE,
     FLASH_ADDR_FRAME_KEY,
     FLASH_ADDR_SUBSCRIPTION_KEY,
+    LEN_ASCON_AEAD_OVERHEAD,
+    LEN_ASCON_KEY,
+    LEN_ASCON_NONCE,
 };
 use common::{
     FrameKey,
     SubscriptionKey,
 };
+use zeroize::Zeroize;
 
 /// Get the frame key from flash memory.
 pub fn get_frame_key() -> FrameKey {
@@ -38,16 +41,41 @@ pub fn get_subscription_key() -> SubscriptionKey {
 }
 
 /// Decrypt the given Ascon-encrypted data using an Ascon key.
-pub fn decrypt_ascon(ascon_data: &[u8], key_bytes: &[u8; LEN_ASCON_KEY], output: &mut [u8]) -> Result<(), ()> {
-    // if ascon_data.len() < LEN_ASCON_NONCE + AEAD_OVERHEAD {
-    //     return Err(());
-    // }
+pub fn decrypt_ascon(ascon_data: &[u8], key_bytes: &[u8; LEN_ASCON_KEY], output_bytes: &mut [u8]) -> Result<(), ()> {
+    assert!(ascon_data.len() >= LEN_ASCON_AEAD_OVERHEAD);
     let nonce_bytes = &ascon_data[..LEN_ASCON_NONCE];
-    let encrypted_data = &ascon_data[LEN_ASCON_NONCE..];
-    // TODO: Decrypt the encrypted data using the key and nonce
+    let data_bytes = &ascon_data[LEN_ASCON_NONCE..];
+    // let mut data_bytes = &ascon_data[LEN_ASCON_NONCE..ascon_data.len() - LEN_ASCON_TAG];
+    // let tag_bytes = &ascon_data[ascon_data.len() - LEN_ASCON_TAG..];
+
     let key = Key::<Ascon128>::from_slice(key_bytes);
     let nonce = Nonce::<Ascon128>::from_slice(nonce_bytes);
+    // let tag = Tag::<Ascon128>::from_slice(tag);
     let cipher = Ascon128::new(key);
-    // let mut 
+    let mut output_vec: Vec<u8, 256> = Vec::new();
+    // Add the encrypted data to the output for decryption in place
+    for byte in data_bytes {
+        output_vec.push(*byte).unwrap();
+    }
+
+    // Decrypt the data in place
+    // cipher.decrypt_in_place_detached(nonce, b"", &mut data, tag);
+    match cipher.decrypt_in_place(nonce, b"", &mut output_vec) {
+        Ok(_) => (),
+        Err(_) => return Err(()),
+    }
+
+    // If the lengths of the vec and the output_bytes array are not the same, return an error
+    if output_vec.len() != output_bytes.len() {
+        return Err(());
+    }
+
+    // Copy the decrypted heapless vec into the output_bytes array
+    for i in 0..output_vec.len() {
+        output_bytes[i] = output_vec[i];
+    }
+
+    output_vec.zeroize();
+
     Ok(())
 }

@@ -93,14 +93,14 @@ pub struct StoredSubscription {
 /// A list of 8 optional SubscriptionInfo objects for each channel.
 #[derive(Debug, Zeroize)]
 pub struct SubscriptionInfoList {
-    pub subscribed_channels: u32,
+    pub num_sub_channels: u32,
     pub subscriptions: [SubscriptionInfo; LEN_STANDARD_CHANNELS],
 }
 
 impl Encode for SubscriptionInfoList {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> core::result::Result<(), EncodeError> {
-        Encode::encode(&self.subscribed_channels, encoder)?;
-        for i in 0..self.subscribed_channels {
+        Encode::encode(&self.num_sub_channels, encoder)?;
+        for i in 0..self.num_sub_channels {
             Encode::encode(&self.subscriptions[i as usize], encoder)?;
         }
         Ok(())
@@ -110,14 +110,14 @@ impl Encode for SubscriptionInfoList {
 impl Decode for SubscriptionInfoList {
     fn decode<D: Decoder>(decoder: &mut D) -> core::result::Result<Self, DecodeError> {
         let mut out = SubscriptionInfoList {
-            subscribed_channels: Decode::decode(decoder)?,
+            num_sub_channels: Decode::decode(decoder)?,
             subscriptions: core::array::from_fn(|_| SubscriptionInfo {
                 channel_id: 0,
                 start: 0,
                 end: 0,
             }),
         };
-        for i in 0..out.subscribed_channels {
+        for i in 0..out.num_sub_channels {
             out.subscriptions[i as usize] = Decode::decode(decoder)?;
         }
         Ok(out)
@@ -127,7 +127,7 @@ impl Decode for SubscriptionInfoList {
 /// A list of 8 optional StoredSubscription objects for each channel.
 #[derive(Debug, Decode, Encode, Zeroize, ZeroizeOnDrop)]
 pub struct StoredSubscriptionList {
-    pub subscribed_channels: u32,
+    pub num_sub_channels: u32,
     pub subscriptions: [StoredSubscription; LEN_STANDARD_CHANNELS],
 }
 

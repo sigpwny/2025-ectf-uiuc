@@ -20,6 +20,11 @@ use common::constants::*;
 use common::MessageToDecoder;
 use host_driver::{HostDriver, Message, MessageType};
 use rng::new_custom_rng;
+use subscription::{
+    get_subscriptions,
+    decrypt_subscription,
+    update_subscription,
+};
 use tmr::Tmr2;
 
 #[entry]
@@ -64,26 +69,35 @@ fn main() -> ! {
     // TODO: Seed the RNG with a unique value
     let rng_seed = [0u8; LEN_RNG_SEED];
     let host_rng = new_custom_rng(&rng_seed, &trng, &tmr2);
-    // let mut random2 = new_custom_rng(&tmr2, &trng, [1u8; 64]);
 
     // Iniitialize the host transport driver
     let mut host = HostDriver::new(host_uart, host_rng, host_delay);
 
-    // TODO: Remove debug loop
-    // for _ in 0..3 {
-    //     host_driver.write_message(Message::debug(b"Hello from the host driver!".as_slice()));
-    //     delay.delay_ms(500);
-    // }
-
     loop {
         let message = host.read_message();
-        // let res: Result<MessageToDecoder, DecodeError> = bincode::decode_from_reader(&mut host, config);
         match message {
             Ok(MessageToDecoder::ListSubscriptions) => {
-                let sub_list = subscription::get_subscriptions(&mut flc);
+                let sub_list = get_subscriptions(&mut flc);
+                assert!(sub_list.num_sub_channels <= LEN_STANDARD_CHANNELS as u32);
+                let mut m = Message::list();
+                m.add_data(&sub_list.num_sub_channels.to_le_bytes());
+                for i in 0..sub_list.num_sub_channels {
+                    m.add_data(&sub_list.subscriptions[i as usize].channel_id.to_le_bytes());
+                    m.add_data(&sub_list.subscriptions[i as usize].start.to_le_bytes());
+                    m.add_data(&sub_list.subscriptions[i as usize].end.to_le_bytes());
+                }
+                host.write_message(m);
             },
             Ok(MessageToDecoder::UpdateSubscription(enc_subscription)) => {
-                unimplemented!("Subscribe message not implemented");
+                match decrypt_subscription(enc_subscription) {
+                    Ok(new_sub) => {
+                        match update_subscription(&mut flc, new_sub) {
+                            Ok(_) => host.write_message(Message::subscribe()),
+                            Err(_) => host.write_message(Message::error()),
+                        }
+                    },
+                    Err(_) => host.write_message(Message::error()),
+                }
             },
             Ok(MessageToDecoder::DecodeFrame(enc_frame)) => {
                 // handle_decode(host, enc_frame);
@@ -99,31 +113,5 @@ fn main() -> ! {
                 host.write_message(Message::error());
             }
         };
-        // match message.header.opcode {
-        //     MessageType::List => {
-        //         unimplemented!("List message not implemented");
-        //     }
-        //     MessageType::Subscribe => {
-        //         unimplemented!("Subscribe message not implemented");
-        //     }
-        //     MessageType::Decode => handle_decode(host, message),
-        //     _ => {}
-        // }
     }
 }
-
-// fn handle_decode(host: &mut HostDriver, message: Message) {
-//     if message.header.length != LEN_ENCRYPTED_FRAME {
-//         host.write_message(Message::error());
-//         return;
-//     }
-//     let enc_frame = EncryptedFrame::from_bytes(&message.data);
-//     match decode::decode_frame(enc_frame) {
-//         Ok(response) => {
-//             host.write_message(Message::decode(&response));
-//         }
-//         Err(_) => {
-//             host.write_message(Message::error());
-//         }
-//     }
-// }
