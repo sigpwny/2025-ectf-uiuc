@@ -1,3 +1,11 @@
 [build-system]
 requires = ["setuptools", "wheel", "pip"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "ectf25_design_wrapper"
+dynamic = ["version"]
+requires-python = ">=3.11"
+dependencies = [
+  "loguru"
+]
