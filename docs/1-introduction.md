@@ -4,27 +4,12 @@ This document describes UIUC's implementation of a secure satellite TV system fo
 
 ## Competition Overview
 
-While the competition does not actually use satellite networks, a simulated network is provided by the competition organizers through the supplied host tools. These host tools simulate the uplink, satellite, and downlink components of a satellite network. These components are out-of-scope for implementation, and teams instead focus on implementing the Encoder and Decoder components, as well as the build system for these components.
+eCTF 2025 simulates a satellite network through the supplied host tools provided by the competition organizers. These host tools simulate the uplink, satellite, and downlink components. These components are out-of-scope for implementation and teams instead focus on implementing the Encoder and Decoder components, as well as the build system for these components.
 
 - **Encoder**: Transforms input data streams into encoded streams, which is sent to the uplink, then to the satellite. The satellite then transmits one-way to the receiver, which passes the data to the Decoder.
 - **Decoder**: Receives encoded streams from the receiver, decodes them, and outputs the original data streams.
 
 The Encoder is meant to run on any standard operating system as its interface is required to be compatible with the host tools written in Python. The Decoder runs on Analog Devices' MAX78000FTHR development board, which features the MAX78000 microcontroller.
-
-<!-- ### Functional Requirements
-
-#### Build System
-- Build environment
-- Build deployment
-- Build Decoder
-
-#### Encoder
-- Encode frames
-
-#### Decoder
-- List channels
-- Update subscriptions
-- Decode frames -->
 
 ### Security Requirements
 

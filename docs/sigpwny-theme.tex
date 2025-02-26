@@ -11,12 +11,16 @@
 \usepackage{tabularx}
 \usepackage[hidelinks]{hyperref}
 
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
 
 \title{UIUC Design Document for MITRE eCTF 2025}
 \author{SIGPwny (UIUC)}
 \geometry{letterpaper, portrait, margin=1in, bmargin=1in, tmargin=1in}
-\setmainfont{Inter}
-\setmonofont{Hack}[Scale=0.8]
+\setmainfont{Inter}[BoldFont={Inter-Bold}, BoldFeatures={Weight=800}]
+\setmonofont{Source Code Pro}
 \setlength{\parindent}{0pt}
 % \setlength{\parskip}{6pt plus 2pt minus 1pt}
 \hypersetup{linktoc=all}

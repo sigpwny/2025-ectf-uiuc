@@ -27,3 +27,5 @@ venv/
 global.secrets
 out/
 **/*.sub
+
+docs/mermaid-filter.err
