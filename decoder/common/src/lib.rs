@@ -165,6 +165,25 @@ pub struct SizedPicture {
 #[derive(Debug)]
 pub struct Timestamp(pub u64);
 
+/// Returns true if the given 16 bytes are the complement of the given 16 bytes.
+pub fn check_complement_16b(a: &[u8; 16], b: &[u8; 16]) -> bool {
+    for i in 0..16 {
+        if a[i] != !b[i] {
+            return false;
+        }
+    }
+    true
+}
+
+/// Returns the complement of the given 16 bytes.
+pub fn make_complement_16b(a: &[u8; 16]) -> [u8; 16] {
+    let mut b = [0u8; 16];
+    for i in 0..16 {
+        b[i] = !a[i];
+    }
+    b
+}
+
 #[cfg(test)]
 mod tests {
     use bincode::{decode_from_slice, encode_into_slice};

@@ -45,7 +45,7 @@ fn gen_subscription(
     end: u64,
     channel: u32,
 ) -> Vec<u8> {
-    assert!(channel == 0, "Invalid channel");
+    assert!(channel != EMERGENCY_CHANNEL_ID, "Invalid channel");
     assert!(start <= end, "Invalid time range");
 
     // Deserialize the deployment secrets

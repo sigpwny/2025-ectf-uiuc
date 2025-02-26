@@ -1,7 +1,6 @@
 // Primitives
 pub const LEN_CHANNEL_ID: usize = 4;
 pub const LEN_TIMESTAMP: usize = 8;
-pub const MAX_STANDARD_CHANNEL: u32 = 8;
 
 pub const LEN_RNG_SEED: usize = 64;
 
@@ -22,7 +21,8 @@ pub const LEN_STORED_SUBSCRIPTION: usize = LEN_SUBSCRIPTION_INFO + LEN_CHANNEL_S
 pub const LEN_ENCRYPTED_SUBSCRIPTION: usize = LEN_STORED_SUBSCRIPTION + LEN_ASCON_AEAD_OVERHEAD;
 
 // List subscription constants
-pub const LEN_STANDARD_CHANNELS: usize = MAX_STANDARD_CHANNEL as usize;
+pub const EMERGENCY_CHANNEL_ID: u32 = 0x0;
+pub const LEN_STANDARD_CHANNELS: usize = 8;
 pub const LEN_SUBSCRIPTION_INFO_LIST: usize = 4 + LEN_STANDARD_CHANNELS * LEN_SUBSCRIPTION_INFO; // The 4 accounts for the 32-bit "number of channels" requirement in host tools
 
 // Frame and picture constants
@@ -43,6 +43,8 @@ pub const FLASH_OFFSET_RANDOM_BYTES: u32 = 25 * FLASH_PAGE_SIZE;
 pub const FLASH_OFFSET_FRAME_KEY: u32 = 26 * FLASH_PAGE_SIZE;
 pub const FLASH_OFFSET_SUBSCRIPTION_KEY: u32 = FLASH_OFFSET_FRAME_KEY + LEN_ASCON_KEY as u32;
 pub const FLASH_OFFSET_SUBSCRIPTION_BASE: u32 = 27 * FLASH_PAGE_SIZE;
+
+pub const FLASH_MAGIC_SUBSCRIPTION: u8 = 0x53;
 
 pub const FLASH_ADDR_RANDOM_BYTES: u32 = FLASH_ADDR_BASE + FLASH_OFFSET_RANDOM_BYTES;
 pub const FLASH_ADDR_FRAME_KEY: u32 = FLASH_ADDR_BASE + FLASH_OFFSET_FRAME_KEY;
