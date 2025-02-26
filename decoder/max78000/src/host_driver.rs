@@ -131,15 +131,13 @@ impl Message {
         }
     }
 
-    pub fn decode(message: &[u8]) -> Self {
-        let mut data = [0u8; MAX_MESSAGE_SIZE];
-        data[..message.len()].copy_from_slice(message);
+    pub fn decode() -> Self {
         Self {
             header: MessageHeader {
                 opcode: MessageType::Decode,
-                length: message.len() as u16,
+                length: 0,
             },
-            data,
+            data: [0u8; MAX_MESSAGE_SIZE],
         }
     }
 
@@ -276,6 +274,11 @@ where
     /// Write an ACK message to the host computer.
     pub fn write_ack(&mut self) {
         self.write_message(Message::ack());
+    }
+
+    /// Write an error message to the host computer.
+    pub fn error(&mut self) {
+        self.write_message(Message::error());
     }
 
     /// Helper function to read a header from the host computer.

@@ -158,18 +158,12 @@ pub struct Picture(pub [u8; MAX_LEN_PICTURE]);
 /// The decrypted picture and its length.
 #[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct SizedPicture {
-    picture_length: u8,
-    picture: Picture,
+    pub picture_length: u8,
+    pub picture: Picture,
 }
 
-impl Encode for SizedPicture {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        for i in 0..self.picture_length {
-            Encode::encode(&self.picture.0[i as usize], encoder)?;
-        }
-        Ok(())
-    }
-}
+#[derive(Debug)]
+pub struct Timestamp(pub u64);
 
 #[cfg(test)]
 mod tests {

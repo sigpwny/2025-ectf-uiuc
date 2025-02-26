@@ -49,13 +49,8 @@ pub fn decrypt_subscription(enc_subscription: EncryptedSubscription) -> Result<S
     }
 
     let dec_sub: StoredSubscription = match decode_from_slice(&dec_sub_bytes, BINCODE_CONFIG) {
-        Ok((sub, bytes_read)) => {
-            if bytes_read != LEN_STORED_SUBSCRIPTION {
-                return Err(());
-            }
-            sub
-        },
-        Err(_) => return Err(()),
+        Ok((sub, LEN_STORED_SUBSCRIPTION)) => sub,
+        _ => return Err(()),
     };
 
     Ok(dec_sub)

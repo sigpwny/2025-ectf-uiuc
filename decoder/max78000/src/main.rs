@@ -17,9 +17,13 @@ pub use hal::pac;
 use panic_halt as _;
 
 use common::constants::*;
-use common::MessageToDecoder;
-use host_driver::{HostDriver, Message, MessageType};
+use common::{MessageToDecoder, Timestamp};
+use host_driver::{HostDriver, Message};
 use rng::new_custom_rng;
+use decode::{
+    decrypt_frame,
+    validate_and_decrypt_picture,
+};
 use subscription::{
     get_subscriptions,
     decrypt_subscription,
@@ -71,6 +75,9 @@ fn main() -> ! {
     };
     let host_rng = new_custom_rng(&rng_seed, &trng, &tmr2);
 
+    // Initialize the monotonic timestamp tracker
+    let mut timestamp = Timestamp(0);
+
     // Iniitialize the host transport driver
     let mut host = HostDriver::new(host_uart, host_rng, host_delay);
 
@@ -94,25 +101,35 @@ fn main() -> ! {
                     Ok(new_sub) => {
                         match update_subscription(&mut flc, new_sub) {
                             Ok(_) => host.write_message(Message::subscribe()),
-                            Err(_) => host.write_message(Message::error()),
+                            Err(_) => host.error(),
                         }
                     },
-                    Err(_) => host.write_message(Message::error()),
+                    Err(_) => host.error(),
                 }
             },
             Ok(MessageToDecoder::DecodeFrame(enc_frame)) => {
-                // handle_decode(host, enc_frame);
-                // unimplemented!("Decode message not implemented");
-                let decoded_frame = b"Hello from the decoder!".as_slice();
-                let mut decode_message = Message::new();
-                decode_message.header.opcode = MessageType::Decode;
-                decode_message.header.length = decoded_frame.len() as u16;
-                decode_message.data[..decoded_frame.len()].copy_from_slice(decoded_frame);
-                host.write_message(decode_message);
+                // let decoded_frame = b"Hello from the decoder!".as_slice();
+                // let mut decode_message = Message::new();
+                // decode_message.header.opcode = MessageType::Decode;
+                // decode_message.header.length = decoded_frame.len() as u16;
+                // decode_message.data[..decoded_frame.len()].copy_from_slice(decoded_frame);
+                // host.write_message(decode_message);
+                match decrypt_frame(&enc_frame) {
+                    Ok(dec_frame) => {
+                        // TODO: Add random delay here
+                        match validate_and_decrypt_picture(&mut flc, &mut timestamp, &dec_frame) {
+                            Ok(pic) => {
+                                let mut m = Message::decode();
+                                m.add_data_bounded(&pic.picture.0, pic.picture_length as usize);
+                                host.write_message(m);
+                            },
+                            Err(_) => host.error(),
+                        }
+                    },
+                    Err(_) => host.error(),
+                }
             },
-            Err(_) => {
-                host.write_message(Message::error());
-            }
+            Err(_) => host.error(),
         };
     }
 }
