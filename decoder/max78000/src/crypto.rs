@@ -1,13 +1,3 @@
-
-// pub struct AsconEncryptedFrame {
-//     pub ascon_nonce: [u8; 16],
-//     pub encrypted_data: [u8] // ????
-// }
-
-// impl Ascon {
-    
-// }
-
 use ascon_aead::{Ascon128, Key, Nonce};
 use ascon_aead::aead::{AeadInPlace, KeyInit};
 use ascon_aead::aead::heapless::Vec;
@@ -45,8 +35,6 @@ pub fn decrypt_ascon(ascon_data: &[u8], key_bytes: &[u8; LEN_ASCON_KEY], output_
     assert!(ascon_data.len() >= LEN_ASCON_AEAD_OVERHEAD);
     let nonce_bytes = &ascon_data[..LEN_ASCON_NONCE];
     let data_bytes = &ascon_data[LEN_ASCON_NONCE..];
-    // let mut data_bytes = &ascon_data[LEN_ASCON_NONCE..ascon_data.len() - LEN_ASCON_TAG];
-    // let tag_bytes = &ascon_data[ascon_data.len() - LEN_ASCON_TAG..];
 
     let key = Key::<Ascon128>::from_slice(key_bytes);
     let nonce = Nonce::<Ascon128>::from_slice(nonce_bytes);
@@ -59,7 +47,6 @@ pub fn decrypt_ascon(ascon_data: &[u8], key_bytes: &[u8; LEN_ASCON_KEY], output_
     }
 
     // Decrypt the data in place
-    // cipher.decrypt_in_place_detached(nonce, b"", &mut data, tag);
     match cipher.decrypt_in_place(nonce, b"", &mut output_vec) {
         Ok(_) => (),
         Err(_) => return Err(()),

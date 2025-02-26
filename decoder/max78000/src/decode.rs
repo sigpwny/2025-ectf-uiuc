@@ -21,11 +21,12 @@ use hal::flc::Flc;
 /// No metadata validation is performed.
 pub fn decrypt_frame(enc_frame: &EncryptedFrame) -> Result<DecryptedFrame, ()> {
     let mut dec_frame_bytes = [0u8; LEN_DECRYPTED_FRAME];
-    let frame_key = get_frame_key();
+    let mut frame_key = get_frame_key();
     match decrypt_ascon(&enc_frame.0, &frame_key.0, &mut dec_frame_bytes) {
         Ok(_) => (),
         Err(_) => return Err(()),
     }
+    frame_key.zeroize();
     let dec_frame: DecryptedFrame = match decode_from_slice(&dec_frame_bytes, BINCODE_CONFIG) {
         Ok((frame, LEN_DECRYPTED_FRAME)) => frame,
         _ => return Err(()),

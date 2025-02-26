@@ -63,17 +63,16 @@ pub fn read_16b(flc: &mut Flc, addr: u32, data: &mut [u8; 16]) -> Result<(), Fla
 pub fn decrypt_subscription(enc_subscription: EncryptedSubscription) -> Result<StoredSubscription, ()> {
     let mut dec_sub_bytes = [0u8; LEN_STORED_SUBSCRIPTION];
 
-    let subscription_key = get_subscription_key();
+    let mut subscription_key = get_subscription_key();
     match decrypt_ascon(&enc_subscription.0, &subscription_key.0, &mut dec_sub_bytes) {
         Ok(_) => (),
         Err(_) => return Err(()),
     }
-
+    subscription_key.zeroize();
     let dec_sub: StoredSubscription = match decode_from_slice(&dec_sub_bytes, BINCODE_CONFIG) {
         Ok((sub, LEN_STORED_SUBSCRIPTION)) => sub,
         _ => return Err(()),
     };
-
     Ok(dec_sub)
 }
 
