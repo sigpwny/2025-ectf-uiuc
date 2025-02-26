@@ -66,8 +66,9 @@ fn main() -> ! {
     let mut flc = hal::flc::Flc::new(p.flc, clks.sys_clk);
 
     // Initialize the custom RNG
-    // TODO: Seed the RNG with a unique value
-    let rng_seed = [0u8; LEN_RNG_SEED];
+    let rng_seed = unsafe {
+        core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED])
+    };
     let host_rng = new_custom_rng(&rng_seed, &trng, &tmr2);
 
     // Iniitialize the host transport driver
