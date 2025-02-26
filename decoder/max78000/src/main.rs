@@ -25,7 +25,7 @@ use decode::{
     validate_and_decrypt_picture,
 };
 use subscription::{
-    get_subscriptions,
+    list_subscriptions,
     decrypt_subscription,
     update_subscription,
 };
@@ -85,7 +85,7 @@ fn main() -> ! {
         let message = host.read_message();
         match message {
             Ok(MessageToDecoder::ListSubscriptions) => {
-                let sub_list = get_subscriptions(&mut flc);
+                let sub_list = list_subscriptions(&mut flc);
                 assert!(sub_list.num_sub_channels <= LEN_STANDARD_CHANNELS as u32);
                 let mut m = Message::list();
                 m.add_data(&sub_list.num_sub_channels.to_le_bytes());

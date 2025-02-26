@@ -39,7 +39,6 @@ pub fn validate_and_decrypt_picture(
     timestamp: &mut Timestamp,
     dec_frame: &DecryptedFrame,
 ) -> Result<SizedPicture, ()> {
-    assert!(dec_frame.channel_id <= MAX_STANDARD_CHANNEL, "Invalid channel ID");
     assert!(dec_frame.picture_length as usize <= MAX_LEN_PICTURE, "Invalid picture length");
     // Get the subscription for the channel
     let mut subscription = match get_channel_subscription(flc, dec_frame.channel_id) {

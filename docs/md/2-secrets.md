@@ -11,10 +11,18 @@
            │                           │
 0x1004_4000├───────────────────────────┤
            │Channel 0 Subscription     │
-           │Enable Magic 0x53 (16B)    │
+           │Magic (4B), Chan. ID (4B)  │
+           │Magic (4B), Chan. ID (4B)  │
+           │~Magic (4B), ~Chan. ID (4B)│
+           │~Magic (4B), ~Chan. ID (4B)│
            │Start Timestamp (8B)       │
            │End Timestamp (8B)         │
-           │Channel Secret (32B)       │
+           │~Start Timestamp (8B)      │
+           │~End Timestamp (8B)        │
+           │Channel Secret 1/2 (16B)   │
+           │~Channel Secret 1/2 (16B)  │
+           │Channel Secret 2/2 (16B)   │
+           │~Channel Secret 2/2 (16B)  │
            │                           │
 0x1004_6000├───────────────────────────┤
            │Channel 1 Subscription     │

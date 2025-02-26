@@ -1,5 +1,8 @@
 use clap::Parser;
-use common::{DeploymentSecrets, SubscriptionInfo, StoredSubscription};
+use common::{
+    DeploymentSecrets,
+    make_complement_16b,
+};
 use common::constants::*;
 use common::crypto::{derive_subscription_key, derive_channel_secret};
 use rand::Rng;
@@ -87,23 +90,40 @@ fn main() -> std::io::Result<()> {
     output_firmware[subscription_key_start..subscription_key_end].copy_from_slice(&subscription_key.0);
 
     // Set up channel 0 subscription
-    let c0_sub_start = FLASH_OFFSET_SUBSCRIPTION_BASE as usize;
-    let c0_secret = derive_channel_secret(&secrets.base_channel_secret, 0);
-    let c0_sub = StoredSubscription {
-        info: SubscriptionInfo {
-            channel_id: 0,
-            start: 0,
-            end: u64::MAX,
-        },
-        channel_secret: c0_secret,
-    };
-    let mut sub_bytes = [0u8; 64];
-    sub_bytes[0..16].copy_from_slice(&[0x53; 16]); // Magic bytes
-    sub_bytes[16..24].copy_from_slice(&c0_sub.info.start.to_le_bytes()); // Start timestamp
-    sub_bytes[24..32].copy_from_slice(&c0_sub.info.end.to_le_bytes()); // End timestamp
-    sub_bytes[32..64].copy_from_slice(&c0_sub.channel_secret.0); // Channel secret
+    let c0_id = EMERGENCY_CHANNEL_ID;
+    let c0_secret = derive_channel_secret(&secrets.base_channel_secret, c0_id);
+    let c0_start: u64 = 0;
+    let c0_end: u64 = u64::MAX;
+
+    let mut sub_bytes = [0u8; 128];
+
+    // Write the header
+    let mut header_bytes = [FLASH_MAGIC_SUBSCRIPTION; 16];
+    header_bytes[4..8].copy_from_slice(&c0_id.to_le_bytes());
+    header_bytes[12..16].copy_from_slice(&c0_id.to_le_bytes());
+    sub_bytes[0..16].copy_from_slice(&header_bytes);
+    sub_bytes[16..32].copy_from_slice(&make_complement_16b(&header_bytes));
+
+    // Write the timestamps
+    let mut timestamp_bytes = [0u8; 16];
+    timestamp_bytes[0..8].copy_from_slice(&c0_start.to_le_bytes());
+    timestamp_bytes[8..16].copy_from_slice(&c0_end.to_le_bytes());
+    sub_bytes[32..48].copy_from_slice(&timestamp_bytes);
+    sub_bytes[48..64].copy_from_slice(&make_complement_16b(&timestamp_bytes));
+
+    // Write the channel secret
+    let mut channel_secret_bytes_1 = [0u8; 16];
+    channel_secret_bytes_1.copy_from_slice(&c0_secret.0[0..16]);
+    sub_bytes[64..80].copy_from_slice(&channel_secret_bytes_1);
+    sub_bytes[80..96].copy_from_slice(&make_complement_16b(&channel_secret_bytes_1));
+    let mut channel_secret_bytes_2 = [0u8; 16];
+    channel_secret_bytes_2.copy_from_slice(&c0_secret.0[16..32]);
+    sub_bytes[96..112].copy_from_slice(&channel_secret_bytes_2);
+    sub_bytes[112..128].copy_from_slice(&make_complement_16b(&channel_secret_bytes_2));
+
     // Write subscription to firmware
-    output_firmware[c0_sub_start..c0_sub_start + 64].copy_from_slice(&sub_bytes);
+    let c0_sub_start = FLASH_OFFSET_SUBSCRIPTION_BASE as usize;
+    output_firmware[c0_sub_start..c0_sub_start + 128].copy_from_slice(&sub_bytes);
 
     // Write to final firmware file
     let mut output = File::create(args.output)?;
