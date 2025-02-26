@@ -45,7 +45,7 @@ fn gen_subscription(
     end: u64,
     channel: u32,
 ) -> Vec<u8> {
-    assert!(channel <= MAX_STANDARD_CHANNEL, "Invalid channel");
+    assert!(channel == 0, "Invalid channel");
     assert!(start <= end, "Invalid time range");
 
     // Deserialize the deployment secrets
@@ -96,7 +96,6 @@ impl Encoder {
 
     /// Encode a frame with the given channel and timestamp.
     fn encode(&self, channel: u32, frame: Vec<u8>, timestamp: u64) -> Vec<u8> {
-        assert!(channel <= MAX_STANDARD_CHANNEL, "Invalid channel");
         assert!(frame.len() <= MAX_LEN_PICTURE, "Invalid frame length");
 
         // Derive the picture encryption key
