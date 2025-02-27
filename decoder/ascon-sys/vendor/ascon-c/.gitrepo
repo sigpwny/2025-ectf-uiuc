@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/ascon/ascon-c.git
+	branch = v1.2
+	commit = b359dc54e323608008d859d54158570437a40425
+	parent = c24131b5e2f0fd9065dfc256a868fd66702a6f7a
+	method = merge
+	cmdver = 0.4.9
