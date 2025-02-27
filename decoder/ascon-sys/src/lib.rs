@@ -1,4 +1,4 @@
-// #![no_std]
+#![no_std]
 
 extern "C" {
     pub fn crypto_aead_encrypt(

@@ -13,9 +13,9 @@ pub fn decrypt_frame(enc_frame: &EncryptedFrame) -> Result<DecryptedFrame, ()> {
     let mut dec_frame_bytes = [0u8; LEN_DECRYPTED_FRAME];
     let mut frame_key = get_frame_key();
     match decrypt_ascon(&enc_frame.0, &frame_key.0, &mut dec_frame_bytes) {
-        Ok(_) => (),
-        Err(_) => return Err(()),
-    }
+        Ok(LEN_DECRYPTED_FRAME) => {}
+        _ => return Err(()),
+    };
     frame_key.zeroize();
     let dec_frame: DecryptedFrame = match decode_from_slice(&dec_frame_bytes, BINCODE_CONFIG) {
         Ok((frame, LEN_DECRYPTED_FRAME)) => frame,
@@ -64,9 +64,9 @@ pub fn validate_and_decrypt_picture(
         &picture_key.0,
         &mut dec_picture_bytes,
     ) {
-        Ok(_) => (),
-        Err(_) => return Err(()),
-    }
+        Ok(MAX_LEN_PICTURE) => {}
+        _ => return Err(()),
+    };
     picture_key.zeroize();
     // Initialize the plaintext picture
     let res = SizedPicture {
