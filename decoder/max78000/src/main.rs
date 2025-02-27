@@ -64,11 +64,11 @@ fn main() -> ! {
 
     // Initialize the custom RNG
     let rng_seed =
-        unsafe { core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED]) };
+        unsafe { core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED * 2]) };
 
-    let host_rng = seed_rng::<0x10>(&rng_seed[LEN_RNG_SEED..], &trng, &tmr2);
+    let host_rng = seed_rng::<0x10>(&rng_seed[LEN_RNG_SEED..LEN_RNG_SEED*2], &trng, &tmr2);
 
-    init_global_rng(&rng_seed[..LEN_RNG_SEED / 2], trng, tmr2);
+    init_global_rng(&rng_seed[..LEN_RNG_SEED], trng, tmr2);
 
     // Initialize the monotonic timestamp tracker
     let mut timestamp = Timestamp(0);
