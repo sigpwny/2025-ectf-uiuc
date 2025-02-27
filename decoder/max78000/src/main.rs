@@ -19,7 +19,8 @@ use common::constants::*;
 use common::{MessageToDecoder, Timestamp};
 use decode::{decrypt_frame, validate_and_decrypt_picture};
 use host_driver::{HostDriver, Message};
-use rng::new_custom_rng;
+use rng::init_global_rng;
+use rng::seed_rng;
 use subscription::{decrypt_subscription, list_subscriptions, update_subscription};
 use tmr::Tmr2;
 
@@ -63,8 +64,11 @@ fn main() -> ! {
 
     // Initialize the custom RNG
     let rng_seed =
-        unsafe { core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED]) };
-    let host_rng = new_custom_rng(&rng_seed, &trng, &tmr2);
+        unsafe { core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED * 2]) };
+
+    let host_rng = seed_rng::<0x10>(&rng_seed[LEN_RNG_SEED..LEN_RNG_SEED*2], &trng, &tmr2);
+
+    init_global_rng(&rng_seed[..LEN_RNG_SEED], trng, tmr2);
 
     // Initialize the monotonic timestamp tracker
     let mut timestamp = Timestamp(0);

@@ -25,11 +25,16 @@ int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
   printbytes("a", a, alen);
   printbytes("m", m, mlen);
   /* dynamic allocation of input/output shares */
-  mask_key_uint32_t* ks = malloc(sizeof(*ks) * NUM_WORDS(CRYPTO_KEYBYTES));
-  mask_npub_uint32_t* ns = malloc(sizeof(*ns) * NUM_WORDS(CRYPTO_NPUBBYTES));
-  mask_ad_uint32_t* as = malloc(sizeof(*as) * NUM_WORDS(alen));
-  mask_m_uint32_t* ms = malloc(sizeof(*ms) * NUM_WORDS(mlen));
-  mask_c_uint32_t* cs = malloc(sizeof(*cs) * NUM_WORDS(mlen + CRYPTO_ABYTES));
+  // mask_key_uint32_t* ks = malloc(sizeof(*ks) * NUM_WORDS(CRYPTO_KEYBYTES));
+  // mask_npub_uint32_t* ns = malloc(sizeof(*ns) * NUM_WORDS(CRYPTO_NPUBBYTES));
+  // mask_ad_uint32_t* as = malloc(sizeof(*as) * NUM_WORDS(alen));
+  // mask_m_uint32_t* ms = malloc(sizeof(*ms) * NUM_WORDS(mlen));
+  // mask_c_uint32_t* cs = malloc(sizeof(*cs) * NUM_WORDS(mlen + CRYPTO_ABYTES));
+  mask_key_uint32_t ks[NUM_WORDS(CRYPTO_KEYBYTES)];
+  mask_npub_uint32_t ns[NUM_WORDS(CRYPTO_NPUBBYTES)];
+  mask_ad_uint32_t as[NUM_WORDS(alen)];
+  mask_m_uint32_t ms[NUM_WORDS(mlen)];
+  mask_c_uint32_t cs[NUM_WORDS(mlen + CRYPTO_ABYTES)];
   /* mask plain input data */
   generate_shares_encrypt(m, ms, mlen, a, as, alen, npub, ns, k, ks);
   /* call shared interface of ascon encrypt */
@@ -39,11 +44,11 @@ int crypto_aead_encrypt(unsigned char* c, unsigned long long* clen,
   /* unmask shared output data */
   combine_shares_encrypt(cs, c, *clen);
   /* free shares */
-  free(ks);
-  free(ns);
-  free(as);
-  free(ms);
-  free(cs);
+  // free(ks);
+  // free(ns);
+  // free(as);
+  // free(ms);
+  // free(cs);
   printbytes("c", c, mlen);
   printbytes("t", c + mlen, CRYPTO_ABYTES);
   print("\n");
@@ -65,11 +70,16 @@ int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
   printbytes("t", c + clen - CRYPTO_ABYTES, CRYPTO_ABYTES);
   if (clen < CRYPTO_ABYTES) return -1;
   /* dynamic allocation of input/output shares */
-  mask_key_uint32_t* ks = malloc(sizeof(*ks) * NUM_WORDS(CRYPTO_KEYBYTES));
-  mask_npub_uint32_t* ns = malloc(sizeof(*ns) * NUM_WORDS(CRYPTO_NPUBBYTES));
-  mask_ad_uint32_t* as = malloc(sizeof(*as) * NUM_WORDS(alen));
-  mask_m_uint32_t* ms = malloc(sizeof(*ms) * NUM_WORDS(clen - CRYPTO_ABYTES));
-  mask_c_uint32_t* cs = malloc(sizeof(*cs) * NUM_WORDS(clen));
+  // mask_key_uint32_t* ks = malloc(sizeof(*ks) * NUM_WORDS(CRYPTO_KEYBYTES));
+  // mask_npub_uint32_t* ns = malloc(sizeof(*ns) * NUM_WORDS(CRYPTO_NPUBBYTES));
+  // mask_ad_uint32_t* as = malloc(sizeof(*as) * NUM_WORDS(alen));
+  // mask_m_uint32_t* ms = malloc(sizeof(*ms) * NUM_WORDS(clen - CRYPTO_ABYTES));
+  // mask_c_uint32_t* cs = malloc(sizeof(*cs) * NUM_WORDS(clen));
+  mask_key_uint32_t ks[NUM_WORDS(CRYPTO_KEYBYTES)];
+  mask_npub_uint32_t ns[NUM_WORDS(CRYPTO_NPUBBYTES)];
+  mask_ad_uint32_t as[NUM_WORDS(alen)];
+  mask_m_uint32_t ms[NUM_WORDS(clen - CRYPTO_ABYTES)];
+  mask_c_uint32_t cs[NUM_WORDS(clen)];
   /* mask plain input data */
   generate_shares_decrypt(c, cs, clen, a, as, alen, npub, ns, k, ks);
   /* call shared interface of ascon decrypt */
@@ -79,11 +89,11 @@ int crypto_aead_decrypt(unsigned char* m, unsigned long long* mlen,
   /* unmask shared output data */
   combine_shares_decrypt(ms, m, *mlen);
   /* free shares */
-  free(ks);
-  free(ns);
-  free(as);
-  free(ms);
-  free(cs);
+  // free(ks);
+  // free(ns);
+  // free(as);
+  // free(ms);
+  // free(cs);
   printbytes("m", m, *mlen);
   print("\n");
   return result;

@@ -8,7 +8,6 @@ publish = false
 targets = ["thumbv7em-none-eabihf"]
 
 [dependencies]
-ascon-aead = { version = "0.4.2", default-features = false, features = ["heapless", "zeroize"] }
 bincode = { version = "2.0.0-rc.3", default-features = false, features = ["derive", "serde"] }
 common = { path = "../common" }
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
@@ -19,9 +18,11 @@ max7800x-hal = "0.7.0"
 panic-halt = "1.0.0"
 rand = { version = "0.9.0", default-features = false }
 rand_chacha = { version = "0.9.0", default-features = false }
-sha3 = { version = "0.10.8", default-features = false }
 tiny-keccak = { version = "2.0.2", features = ["kmac", "sha3"]}
 zeroize = { version = "1.8.1", default-features = false, features = ["derive"] }
+ascon-sys = { path = "../ascon-sys" }
+critical-section = "1.2.0"
+cty = "0.2.2"
 
 [profile.dev]
 opt-level = "s"

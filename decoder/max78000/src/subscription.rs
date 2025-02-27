@@ -61,9 +61,9 @@ pub fn decrypt_subscription(
 
     let mut subscription_key = get_subscription_key();
     match decrypt_ascon(&enc_subscription.0, &subscription_key.0, &mut dec_sub_bytes) {
-        Ok(_) => (),
-        Err(_) => return Err(()),
-    }
+        Ok(LEN_STORED_SUBSCRIPTION) => {}
+        _ => return Err(()),
+    };
     subscription_key.zeroize();
     let dec_sub: StoredSubscription = match decode_from_slice(&dec_sub_bytes, BINCODE_CONFIG) {
         Ok((sub, LEN_STORED_SUBSCRIPTION)) => sub,

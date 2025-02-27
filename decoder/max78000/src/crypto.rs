@@ -1,12 +1,14 @@
-use ascon_aead::aead::heapless::Vec;
-use ascon_aead::aead::{AeadInPlace, KeyInit};
-use ascon_aead::{Ascon128, Key, Nonce};
+use ascon_sys::crypto_aead_decrypt;
 use common::constants::{
     FLASH_ADDR_FRAME_KEY, FLASH_ADDR_SUBSCRIPTION_KEY, LEN_ASCON_AEAD_OVERHEAD, LEN_ASCON_KEY,
-    LEN_ASCON_NONCE,
+    LEN_ASCON_NONCE, LEN_ASCON_TAG,
 };
 use common::{FrameKey, SubscriptionKey};
-use zeroize::Zeroize;
+
+/// The error types that can be encountered during decryption
+pub enum DecryptError {
+    InvalidCiphertext,
+}
 
 /// Get the frame key from flash memory.
 pub fn get_frame_key() -> FrameKey {
@@ -23,42 +25,45 @@ pub fn get_subscription_key() -> SubscriptionKey {
     SubscriptionKey(subscription_key_bytes)
 }
 
+pub fn internal_decrypt_ascon(
+    ciphertext: &[u8],
+    nonce: &[u8; LEN_ASCON_NONCE],
+    key: &[u8; LEN_ASCON_KEY],
+    message: &mut [u8],
+) -> Result<usize, DecryptError> {
+    assert!(message.len() + LEN_ASCON_TAG >= ciphertext.len());
+
+    let mut mlen: u64 = 0;
+    let result = unsafe {
+        crypto_aead_decrypt(
+            message.as_mut_ptr(),
+            &mut mlen,
+            core::ptr::null_mut(),
+            ciphertext.as_ptr(),
+            ciphertext.len() as u64,
+            core::ptr::null_mut(),
+            0,
+            nonce.as_ptr(),
+            key.as_ptr(),
+        )
+    };
+
+    match result {
+        -1 => Err(DecryptError::InvalidCiphertext),
+        0 => Ok(mlen as usize),
+        _ => unreachable!("Ascon returned unexpected length"),
+    }
+}
+
 /// Decrypt the given Ascon-encrypted data using an Ascon key.
 pub fn decrypt_ascon(
     ascon_data: &[u8],
-    key_bytes: &[u8; LEN_ASCON_KEY],
+    key: &[u8; LEN_ASCON_KEY],
     output_bytes: &mut [u8],
-) -> Result<(), ()> {
+) -> Result<usize, DecryptError> {
     assert!(ascon_data.len() >= LEN_ASCON_AEAD_OVERHEAD);
-    let nonce_bytes = &ascon_data[..LEN_ASCON_NONCE];
-    let data_bytes = &ascon_data[LEN_ASCON_NONCE..];
+    let nonce = &ascon_data[..LEN_ASCON_NONCE];
+    let ciphertext = &ascon_data[LEN_ASCON_NONCE..];
 
-    let key = Key::<Ascon128>::from_slice(key_bytes);
-    let nonce = Nonce::<Ascon128>::from_slice(nonce_bytes);
-    let cipher = Ascon128::new(key);
-    let mut output_vec: Vec<u8, 256> = Vec::new();
-    // Add the encrypted data to the output for decryption in place
-    for byte in data_bytes {
-        output_vec.push(*byte).unwrap();
-    }
-
-    // Decrypt the data in place
-    match cipher.decrypt_in_place(nonce, b"", &mut output_vec) {
-        Ok(_) => (),
-        Err(_) => return Err(()),
-    }
-
-    // If the lengths of the vec and the output_bytes array are not the same, return an error
-    if output_vec.len() != output_bytes.len() {
-        return Err(());
-    }
-
-    // Copy the decrypted heapless vec into the output_bytes array
-    for i in 0..output_vec.len() {
-        output_bytes[i] = output_vec[i];
-    }
-
-    output_vec.zeroize();
-
-    Ok(())
+    internal_decrypt_ascon(ciphertext, nonce.try_into().unwrap(), key, output_bytes)
 }

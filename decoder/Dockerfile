@@ -6,6 +6,8 @@ FROM rust:latest
 
 WORKDIR /decoder
 
+RUN apt-get update && apt-get install -y gdb gdb-multiarch gcc-arm-none-eabi binutils-arm-none-eabi make
+
 # Install cargo-make
 RUN cargo install --force cargo-make cargo-binutils
 
