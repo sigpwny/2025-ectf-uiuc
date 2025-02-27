@@ -10,7 +10,7 @@ use rand_chacha::{
     rand_core::impls::{fill_bytes_via_next, next_u64_via_u32},
     ChaCha20Rng,
 };
-use sha3::{Digest, Sha3_256};
+use tiny_keccak::{Hasher, Sha3};
 
 const RESEED_COUNTER: u32 = 64;
 
@@ -48,13 +48,15 @@ pub struct CustomRng {
 }
 
 pub fn seed_rng<const N: usize>(seed: &[u8], trng: &Trng, tmr2: &Tmr2) -> ChaCha20Rng {
-    let mut hasher = Sha3_256::new();
+    let mut hasher = Sha3::v256();
     hasher.update(seed);
     for _ in 0..N {
-        hasher.update(trng.gen_u32().to_ne_bytes());
-        hasher.update(tmr2.get_tick_count().to_ne_bytes());
+        hasher.update(&trng.gen_u32().to_ne_bytes());
+        hasher.update(&tmr2.get_tick_count().to_ne_bytes());
     }
-    ChaCha20Rng::from_seed(hasher.finalize().into())
+    let mut output = [0u8; 32];
+    hasher.finalize(&mut output);
+    ChaCha20Rng::from_seed(output)
 }
 
 impl CustomRng {
