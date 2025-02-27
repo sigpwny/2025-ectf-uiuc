@@ -1,10 +1,7 @@
 use clap::Parser;
-use common::{
-    DeploymentSecrets,
-    make_complement_16b,
-};
 use common::constants::*;
-use common::crypto::{derive_subscription_key, derive_channel_secret};
+use common::crypto::{derive_channel_secret, derive_subscription_key};
+use common::{make_complement_16b, DeploymentSecrets};
 use rand::Rng;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -16,7 +13,8 @@ fn parse_number(s: &str) -> Result<u32, String> {
     if let Some(hex) = s.strip_prefix("0x") {
         u32::from_str_radix(hex, 16).map_err(|_| format!("Invalid hexadecimal number: {}", s))
     } else {
-        s.parse::<u32>().map_err(|_| format!("Invalid decimal number: {}", s))
+        s.parse::<u32>()
+            .map_err(|_| format!("Invalid decimal number: {}", s))
     }
 }
 
@@ -49,13 +47,17 @@ struct Segment<'a> {
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
 
-    println!("Building firmware for DECODER_ID: {:#010x}", args.decoder_id);
+    println!(
+        "Building firmware for DECODER_ID: {:#010x}",
+        args.decoder_id
+    );
 
     // Read in global.secrets
     let mut secrets_file = File::open(args.secrets)?;
     let mut secrets_data = Vec::new();
     secrets_file.read_to_end(&mut secrets_data)?;
-    let secrets: DeploymentSecrets = serde_json::from_slice(&secrets_data).expect("Failed to deserialize deployment secrets");
+    let secrets: DeploymentSecrets =
+        serde_json::from_slice(&secrets_data).expect("Failed to deserialize deployment secrets");
 
     // Fill firmware with random data
     let mut output_firmware = vec![0xFF; FLASH_FIRMWARE_SIZE as usize];
@@ -71,7 +73,10 @@ fn main() -> std::io::Result<()> {
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
     if data.len() > input_firmware.max_size {
-        panic!("{} exceeds max allowed size of {:#X} bytes!", input_firmware.path, input_firmware.max_size);
+        panic!(
+            "{} exceeds max allowed size of {:#X} bytes!",
+            input_firmware.path, input_firmware.max_size
+        );
     }
     // Copy data to firmware
     let start = input_firmware.address;
@@ -83,11 +88,13 @@ fn main() -> std::io::Result<()> {
     let frame_key_end = frame_key_start + LEN_ASCON_KEY;
     output_firmware[frame_key_start..frame_key_end].copy_from_slice(&secrets.frame_key.0);
     // Derive subscription key from secrets
-    let subscription_key = derive_subscription_key(&secrets.base_subscription_secret, args.decoder_id);
+    let subscription_key =
+        derive_subscription_key(&secrets.base_subscription_secret, args.decoder_id);
     // Write subscription key to firmware
     let subscription_key_start = FLASH_OFFSET_SUBSCRIPTION_KEY as usize;
     let subscription_key_end = subscription_key_start + LEN_ASCON_KEY;
-    output_firmware[subscription_key_start..subscription_key_end].copy_from_slice(&subscription_key.0);
+    output_firmware[subscription_key_start..subscription_key_end]
+        .copy_from_slice(&subscription_key.0);
 
     // Set up channel 0 subscription
     let c0_id = EMERGENCY_CHANNEL_ID;

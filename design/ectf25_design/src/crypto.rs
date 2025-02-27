@@ -1,5 +1,5 @@
-use ascon_aead::{Ascon128, Key, Nonce};
 use ascon_aead::aead::{Aead, KeyInit};
+use ascon_aead::{Ascon128, Key, Nonce};
 use common::constants::{LEN_ASCON_KEY, LEN_ASCON_NONCE};
 use rand::Rng;
 

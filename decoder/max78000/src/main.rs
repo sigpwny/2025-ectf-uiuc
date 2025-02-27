@@ -18,17 +18,10 @@ use panic_halt as _;
 
 use common::constants::*;
 use common::{MessageToDecoder, Timestamp};
+use decode::{decrypt_frame, validate_and_decrypt_picture};
 use host_driver::{HostDriver, Message};
 use rng::new_custom_rng;
-use decode::{
-    decrypt_frame,
-    validate_and_decrypt_picture,
-};
-use subscription::{
-    list_subscriptions,
-    decrypt_subscription,
-    update_subscription,
-};
+use subscription::{decrypt_subscription, list_subscriptions, update_subscription};
 use tmr::Tmr2;
 
 #[entry]
@@ -70,9 +63,8 @@ fn main() -> ! {
     let mut flc = hal::flc::Flc::new(p.flc, clks.sys_clk);
 
     // Initialize the custom RNG
-    let rng_seed = unsafe {
-        core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED])
-    };
+    let rng_seed =
+        unsafe { core::ptr::read_volatile(FLASH_ADDR_RANDOM_BYTES as *const [u8; LEN_RNG_SEED]) };
     let host_rng = new_custom_rng(&rng_seed, &trng, &tmr2);
 
     // Initialize the monotonic timestamp tracker
@@ -95,18 +87,16 @@ fn main() -> ! {
                     m.add_data(&sub_list.subscriptions[i as usize].end.to_le_bytes());
                 }
                 host.write_message(m);
-            },
+            }
             Ok(MessageToDecoder::UpdateSubscription(enc_subscription)) => {
                 match decrypt_subscription(enc_subscription) {
-                    Ok(new_sub) => {
-                        match update_subscription(&mut flc, new_sub) {
-                            Ok(_) => host.write_message(Message::subscribe()),
-                            Err(_) => host.error(),
-                        }
+                    Ok(new_sub) => match update_subscription(&mut flc, new_sub) {
+                        Ok(_) => host.write_message(Message::subscribe()),
+                        Err(_) => host.error(),
                     },
                     Err(_) => host.error(),
                 }
-            },
+            }
             Ok(MessageToDecoder::DecodeFrame(enc_frame)) => {
                 match decrypt_frame(&enc_frame) {
                     Ok(dec_frame) => {
@@ -116,13 +106,13 @@ fn main() -> ! {
                                 let mut m = Message::decode();
                                 m.add_data_bounded(&pic.picture.0, pic.picture_length as usize);
                                 host.write_message(m);
-                            },
+                            }
                             Err(_) => host.error(),
                         }
-                    },
+                    }
                     Err(_) => host.error(),
                 }
-            },
+            }
             Err(_) => host.error(),
         };
     }

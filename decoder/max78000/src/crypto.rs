@@ -1,24 +1,17 @@
-use ascon_aead::{Ascon128, Key, Nonce};
-use ascon_aead::aead::{AeadInPlace, KeyInit};
 use ascon_aead::aead::heapless::Vec;
+use ascon_aead::aead::{AeadInPlace, KeyInit};
+use ascon_aead::{Ascon128, Key, Nonce};
 use common::constants::{
-    FLASH_ADDR_FRAME_KEY,
-    FLASH_ADDR_SUBSCRIPTION_KEY,
-    LEN_ASCON_AEAD_OVERHEAD,
-    LEN_ASCON_KEY,
+    FLASH_ADDR_FRAME_KEY, FLASH_ADDR_SUBSCRIPTION_KEY, LEN_ASCON_AEAD_OVERHEAD, LEN_ASCON_KEY,
     LEN_ASCON_NONCE,
 };
-use common::{
-    FrameKey,
-    SubscriptionKey,
-};
+use common::{FrameKey, SubscriptionKey};
 use zeroize::Zeroize;
 
 /// Get the frame key from flash memory.
 pub fn get_frame_key() -> FrameKey {
-    let frame_key_bytes = unsafe {
-        core::ptr::read_volatile(FLASH_ADDR_FRAME_KEY as *const [u8; LEN_ASCON_KEY])
-    };
+    let frame_key_bytes =
+        unsafe { core::ptr::read_volatile(FLASH_ADDR_FRAME_KEY as *const [u8; LEN_ASCON_KEY]) };
     FrameKey(frame_key_bytes)
 }
 
@@ -31,7 +24,11 @@ pub fn get_subscription_key() -> SubscriptionKey {
 }
 
 /// Decrypt the given Ascon-encrypted data using an Ascon key.
-pub fn decrypt_ascon(ascon_data: &[u8], key_bytes: &[u8; LEN_ASCON_KEY], output_bytes: &mut [u8]) -> Result<(), ()> {
+pub fn decrypt_ascon(
+    ascon_data: &[u8],
+    key_bytes: &[u8; LEN_ASCON_KEY],
+    output_bytes: &mut [u8],
+) -> Result<(), ()> {
     assert!(ascon_data.len() >= LEN_ASCON_AEAD_OVERHEAD);
     let nonce_bytes = &ascon_data[..LEN_ASCON_NONCE];
     let data_bytes = &ascon_data[LEN_ASCON_NONCE..];

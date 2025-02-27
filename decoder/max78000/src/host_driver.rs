@@ -1,14 +1,10 @@
-use bincode::{
-    de::read::Reader,
-    error::DecodeError,
-    decode_from_reader,
-};
-use common::{MessageToDecoder, BINCODE_CONFIG};
-use common::constants::*;
-use core::convert::Infallible;
-use cortex_m::delay::Delay;
 use crate::hardening::delay_random_us;
 use crate::repeat_5;
+use bincode::{de::read::Reader, decode_from_reader, error::DecodeError};
+use common::constants::*;
+use common::{MessageToDecoder, BINCODE_CONFIG};
+use core::convert::Infallible;
+use cortex_m::delay::Delay;
 use embedded_hal_nb::nb::block;
 use embedded_hal_nb::serial;
 use rand::RngCore;
@@ -36,7 +32,7 @@ pub enum UartError {
 
 pub enum UartState {
     None,
-    NumBytesRead(usize)
+    NumBytesRead(usize),
 }
 
 pub struct MessageHeader {
@@ -201,7 +197,7 @@ where
             uart,
             rng,
             delay,
-            state: UartState::None
+            state: UartState::None,
         }
     }
 
@@ -218,11 +214,18 @@ where
 
         let result = match (header.opcode, header.length as usize) {
             (MessageType::List, 0) => Ok(MessageToDecoder::ListSubscriptions),
-            (MessageType::Subscribe, LEN_ENCRYPTED_SUBSCRIPTION) => Ok(MessageToDecoder::UpdateSubscription(
+            (MessageType::Subscribe, LEN_ENCRYPTED_SUBSCRIPTION) => {
+                Ok(MessageToDecoder::UpdateSubscription(
+                    decode_from_reader(&mut *self, BINCODE_CONFIG)
+                        .map_err(|e| UartError::Decode(e))?,
+                ))
+            }
+            (MessageType::Decode, LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::DecodeFrame(
                 decode_from_reader(&mut *self, BINCODE_CONFIG).map_err(|e| UartError::Decode(e))?,
             )),
-            (MessageType::Decode, LEN_ENCRYPTED_FRAME) => Ok(MessageToDecoder::DecodeFrame(decode_from_reader(&mut *self, BINCODE_CONFIG).map_err(|e| UartError::Decode(e))?)),
-            (MessageType::List|MessageType::Subscribe|MessageType::Decode, _) => Err(UartError::InvalidLength),
+            (MessageType::List | MessageType::Subscribe | MessageType::Decode, _) => {
+                Err(UartError::InvalidLength)
+            }
             _ => Err(UartError::InvalidOpcode),
         };
 

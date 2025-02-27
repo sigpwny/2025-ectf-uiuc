@@ -1,22 +1,11 @@
 mod crypto;
 use crypto::encrypt_ascon;
 
-use common::{
-    FrameKey,
-    BaseChannelSecret,
-    BaseSubscriptionSecret,
-    DeploymentSecrets,
-    SubscriptionInfo,
-    StoredSubscription,
-    DecryptedFrame,
-    EncryptedPicture,
-    BINCODE_CONFIG,
-};
 use common::constants::*;
-use common::crypto::{
-    derive_subscription_key,
-    derive_channel_secret,
-    derive_picture_key,
+use common::crypto::{derive_channel_secret, derive_picture_key, derive_subscription_key};
+use common::{
+    BaseChannelSecret, BaseSubscriptionSecret, DecryptedFrame, DeploymentSecrets, EncryptedPicture,
+    FrameKey, StoredSubscription, SubscriptionInfo, BINCODE_CONFIG,
 };
 use pyo3::prelude::*;
 use rand::Rng;
@@ -30,7 +19,9 @@ fn gen_secrets(channels: Vec<u32>) -> Vec<u8> {
     let secrets = DeploymentSecrets {
         frame_key: FrameKey(rng.random::<[u8; LEN_ASCON_KEY]>()),
         base_channel_secret: BaseChannelSecret(rng.random::<[u8; LEN_BASE_CHANNEL_SECRET]>()),
-        base_subscription_secret: BaseSubscriptionSecret(rng.random::<[u8; LEN_BASE_SUBSCRIPTION_SECRET]>()),
+        base_subscription_secret: BaseSubscriptionSecret(
+            rng.random::<[u8; LEN_BASE_SUBSCRIPTION_SECRET]>(),
+        ),
     };
     // Serialize the deployment secrets to JSON
     serde_json::to_vec(&secrets).expect("Failed to serialize secrets")
@@ -49,7 +40,8 @@ fn gen_subscription(
     assert!(start <= end, "Invalid time range");
 
     // Deserialize the deployment secrets
-    let s: DeploymentSecrets = serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
+    let s: DeploymentSecrets =
+        serde_json::from_slice(&secrets).expect("Failed to deserialize secrets");
     // Derive the channel secret for the given channel
     let channel_secret = derive_channel_secret(&s.base_channel_secret, channel);
     // Derive the subscription encryption key for the given decoder ID
@@ -68,14 +60,22 @@ fn gen_subscription(
 
     // Encode the subscription
     let mut subscription_bytes = [0u8; LEN_STORED_SUBSCRIPTION];
-    match bincode::encode_into_slice(&stored_subscription, &mut subscription_bytes, BINCODE_CONFIG) {
+    match bincode::encode_into_slice(
+        &stored_subscription,
+        &mut subscription_bytes,
+        BINCODE_CONFIG,
+    ) {
         Ok(LEN_STORED_SUBSCRIPTION) => (),
         _ => panic!("Failed to encode subscription"),
     }
 
     // Encrypt the subscription
     let encrypted_subscription = encrypt_ascon(&subscription_bytes, &subscription_key.0);
-    assert_eq!(encrypted_subscription.len(), LEN_ENCRYPTED_SUBSCRIPTION, "Invalid encrypted subscription length");
+    assert_eq!(
+        encrypted_subscription.len(),
+        LEN_ENCRYPTED_SUBSCRIPTION,
+        "Invalid encrypted subscription length"
+    );
     encrypted_subscription
 }
 
@@ -90,7 +90,8 @@ impl Encoder {
     /// Initialize the encoder with the given secrets.
     #[new]
     fn new(secrets: Vec<u8>) -> Self {
-        let s: DeploymentSecrets = serde_json::from_slice(&secrets).expect("Failed to deserialize deployment secrets");
+        let s: DeploymentSecrets =
+            serde_json::from_slice(&secrets).expect("Failed to deserialize deployment secrets");
         Encoder { secrets: s }
     }
 
@@ -106,7 +107,11 @@ impl Encoder {
         let mut picture_bytes = [0u8; MAX_LEN_PICTURE];
         picture_bytes[..frame.len()].copy_from_slice(&frame);
         let encrypted_picture = encrypt_ascon(&picture_bytes, &picture_key.0);
-        assert_eq!(encrypted_picture.len(), LEN_ENCRYPTED_PICTURE, "Invalid encrypted picture length");
+        assert_eq!(
+            encrypted_picture.len(),
+            LEN_ENCRYPTED_PICTURE,
+            "Invalid encrypted picture length"
+        );
 
         // Initialize the plaintext frame
         let plaintext_frame = DecryptedFrame {
@@ -117,14 +122,22 @@ impl Encoder {
         };
         // Encode the plaintext frame
         let mut plaintext_frame_bytes = [0u8; LEN_DECRYPTED_FRAME];
-        match bincode::encode_into_slice(&plaintext_frame, &mut plaintext_frame_bytes, BINCODE_CONFIG) {
+        match bincode::encode_into_slice(
+            &plaintext_frame,
+            &mut plaintext_frame_bytes,
+            BINCODE_CONFIG,
+        ) {
             Ok(LEN_DECRYPTED_FRAME) => (),
             _ => panic!("Failed to encode frame"),
         }
 
         // Encrypt the frame
         let encrypted_frame = encrypt_ascon(&plaintext_frame_bytes, &self.secrets.frame_key.0);
-        assert_eq!(encrypted_frame.len(), LEN_ENCRYPTED_FRAME, "Invalid encrypted frame length");
+        assert_eq!(
+            encrypted_frame.len(),
+            LEN_ENCRYPTED_FRAME,
+            "Invalid encrypted frame length"
+        );
         encrypted_frame
     }
 }

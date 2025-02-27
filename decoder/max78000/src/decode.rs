@@ -1,21 +1,11 @@
+use crate::crypto::{decrypt_ascon, get_frame_key};
+use crate::subscription::get_channel_subscription;
 use bincode::decode_from_slice;
-use common::{
-    EncryptedFrame,
-    DecryptedFrame,
-    SizedPicture,
-    Picture,
-    Timestamp,
-    BINCODE_CONFIG,
-};
 use common::constants::*;
 use common::crypto::derive_picture_key;
-use zeroize::Zeroize;
-use crate::crypto::{
-    decrypt_ascon,
-    get_frame_key,
-};
-use crate::subscription::get_channel_subscription;
+use common::{DecryptedFrame, EncryptedFrame, Picture, SizedPicture, Timestamp, BINCODE_CONFIG};
 use hal::flc::Flc;
+use zeroize::Zeroize;
 
 /// Decrypts the outer frame and returns a DecryptedFrame.
 /// No metadata validation is performed.
@@ -40,7 +30,10 @@ pub fn validate_and_decrypt_picture(
     timestamp: &mut Timestamp,
     dec_frame: &DecryptedFrame,
 ) -> Result<SizedPicture, ()> {
-    assert!(dec_frame.picture_length as usize <= MAX_LEN_PICTURE, "Invalid picture length");
+    assert!(
+        dec_frame.picture_length as usize <= MAX_LEN_PICTURE,
+        "Invalid picture length"
+    );
     // Get the subscription for the channel
     let mut subscription = match get_channel_subscription(flc, dec_frame.channel_id) {
         Ok(sub) => sub,
@@ -48,7 +41,8 @@ pub fn validate_and_decrypt_picture(
     };
     // Ensure the timestamp is within the subscription range
     // TODO: ENFORCE REPEATED VOLATILE CONDITIONAL
-    if dec_frame.timestamp < subscription.info.start || dec_frame.timestamp > subscription.info.end {
+    if dec_frame.timestamp < subscription.info.start || dec_frame.timestamp > subscription.info.end
+    {
         return Err(());
     }
     // Ensure the timestamp is greater than the last seen timestamp
@@ -64,7 +58,11 @@ pub fn validate_and_decrypt_picture(
     subscription.zeroize();
     // Decrypt the picture
     let mut dec_picture_bytes = [0u8; MAX_LEN_PICTURE];
-    match decrypt_ascon(&dec_frame.encrypted_picture.0, &picture_key.0, &mut dec_picture_bytes) {
+    match decrypt_ascon(
+        &dec_frame.encrypted_picture.0,
+        &picture_key.0,
+        &mut dec_picture_bytes,
+    ) {
         Ok(_) => (),
         Err(_) => return Err(()),
     }

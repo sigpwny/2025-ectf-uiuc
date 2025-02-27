@@ -1,17 +1,11 @@
-use bincode::decode_from_slice;
-use common::{
-    ChannelSecret,
-    EncryptedSubscription,
-    StoredSubscription,
-    SubscriptionInfo,
-    SubscriptionInfoList,
-    check_complement_16b,
-    make_complement_16b,
-    BINCODE_CONFIG,
-};
-use common::constants::*;
 use crate::crypto::{decrypt_ascon, get_subscription_key};
-use crate::hal::flc::{Flc, FlashError};
+use crate::hal::flc::{FlashError, Flc};
+use bincode::decode_from_slice;
+use common::constants::*;
+use common::{
+    check_complement_16b, make_complement_16b, ChannelSecret, EncryptedSubscription,
+    StoredSubscription, SubscriptionInfo, SubscriptionInfoList, BINCODE_CONFIG,
+};
 use zeroize::Zeroize;
 
 // Everything is 16B aligned. Every 16B is complemented by the next 16B.
@@ -60,7 +54,9 @@ pub fn read_16b(flc: &mut Flc, addr: u32, data: &mut [u8; 16]) -> Result<(), Fla
 }
 
 /// Decrypts the subscription and returns a StoredSubscription.
-pub fn decrypt_subscription(enc_subscription: EncryptedSubscription) -> Result<StoredSubscription, ()> {
+pub fn decrypt_subscription(
+    enc_subscription: EncryptedSubscription,
+) -> Result<StoredSubscription, ()> {
     let mut dec_sub_bytes = [0u8; LEN_STORED_SUBSCRIPTION];
 
     let mut subscription_key = get_subscription_key();
@@ -82,7 +78,10 @@ pub fn decrypt_subscription(enc_subscription: EncryptedSubscription) -> Result<S
 /// - If an empty or invalid subscription is found, the new subscription is written.
 /// - If there are no more slots available, the subscription is not written and an error is returned.
 pub fn update_subscription(flc: &mut Flc, new_sub: StoredSubscription) -> Result<(), FlashError> {
-    assert!(new_sub.info.channel_id != EMERGENCY_CHANNEL_ID, "Invalid channel ID");
+    assert!(
+        new_sub.info.channel_id != EMERGENCY_CHANNEL_ID,
+        "Invalid channel ID"
+    );
 
     for idx in 1..=LEN_STANDARD_CHANNELS as u32 {
         match get_subscription_at_idx(flc, idx) {
@@ -104,7 +103,11 @@ pub fn update_subscription(flc: &mut Flc, new_sub: StoredSubscription) -> Result
 }
 
 /// Writes the given subscription to flash memory at the given index.
-fn write_subscription(flc: &mut Flc, idx: u32, new_sub: StoredSubscription) -> Result<(), FlashError> {
+fn write_subscription(
+    flc: &mut Flc,
+    idx: u32,
+    new_sub: StoredSubscription,
+) -> Result<(), FlashError> {
     let sub_addr: u32 = FLASH_ADDR_SUBSCRIPTION_BASE + (idx * FLASH_PAGE_SIZE);
 
     unsafe {
@@ -129,12 +132,20 @@ fn write_subscription(flc: &mut Flc, idx: u32, new_sub: StoredSubscription) -> R
     let mut channel_secret_bytes_1 = [0u8; 16];
     channel_secret_bytes_1.copy_from_slice(&new_sub.channel_secret.0[0..16]);
     write_16b(flc, sub_addr + 64, &channel_secret_bytes_1)?;
-    write_16b(flc, sub_addr + 80, &make_complement_16b(&channel_secret_bytes_1))?;
+    write_16b(
+        flc,
+        sub_addr + 80,
+        &make_complement_16b(&channel_secret_bytes_1),
+    )?;
     channel_secret_bytes_1.zeroize();
     let mut channel_secret_bytes_2 = [0u8; 16];
     channel_secret_bytes_2.copy_from_slice(&new_sub.channel_secret.0[16..32]);
     write_16b(flc, sub_addr + 96, &channel_secret_bytes_2)?;
-    write_16b(flc, sub_addr + 112, &make_complement_16b(&channel_secret_bytes_2))?;
+    write_16b(
+        flc,
+        sub_addr + 112,
+        &make_complement_16b(&channel_secret_bytes_2),
+    )?;
     channel_secret_bytes_2.zeroize();
 
     Ok(())
