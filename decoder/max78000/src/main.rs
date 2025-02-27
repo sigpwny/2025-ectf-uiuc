@@ -13,7 +13,6 @@ pub extern crate max7800x_hal as hal;
 pub use hal::entry;
 pub use hal::pac;
 
-// TODO: Custom panic handler
 use panic_halt as _;
 
 use common::constants::*;

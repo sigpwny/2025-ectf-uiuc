@@ -39,16 +39,17 @@ pub fn validate_and_decrypt_picture(
         Ok(sub) => sub,
         Err(_) => return Err(()),
     };
-    // Ensure the timestamp is within the subscription range
-    // TODO: ENFORCE REPEATED VOLATILE CONDITIONAL
-    if dec_frame.timestamp < subscription.info.start || dec_frame.timestamp > subscription.info.end
-    {
-        return Err(());
-    }
-    // Ensure the timestamp is greater than the last seen timestamp
-    // TODO: ENFORCE REPEATED VOLATILE CONDITIONAL
-    if dec_frame.timestamp <= timestamp.0 {
-        return Err(());
+    for _ in 0..core::hint::black_box(3) {
+        // Ensure the timestamp is within the subscription range
+        if core::hint::black_box(dec_frame.timestamp) < core::hint::black_box(subscription.info.start)
+            || core::hint::black_box(dec_frame.timestamp) > core::hint::black_box(subscription.info.end)
+        {
+            return Err(());
+        }
+        // Ensure the timestamp is greater than the last seen timestamp
+        if core::hint::black_box(dec_frame.timestamp) <= core::hint::black_box(timestamp.0) {
+            return Err(());
+        }
     }
     // At this point, we have validated all the metadata
     // Update the timestamp
